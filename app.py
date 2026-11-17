@@ -4,7 +4,7 @@ from google import genai
 
 FICHIER_CLE = "cle.txt"
 FICHIER_MEMOIRE = "memoire.txt"
-MODELE = "gemini-3.8-flash"
+MODELE = "gemini-2.5-flash-lite"
 
 st.set_page_config(page_title="Mon IA personnelle", page_icon="🧠")
 st.title("🧠 Mon IA personnelle")
@@ -23,6 +23,8 @@ def ajouter_memoire(info):
 
 
 cle = lire_fichier(FICHIER_CLE)
+if not cle and "GEMINI_API_KEY" in st.secrets:
+    cle = st.secrets["GEMINI_API_KEY"]
 if not cle:
     st.warning("Colle ta cle API Gemini pour commencer.")
     nouvelle = st.text_input("Cle API Gemini", type="password")
@@ -76,6 +78,9 @@ else:
             if info:
                 st.session_state.en_attente = info
         else:
-            reponse = st.session_state.chat.send_message(message)
-            st.session_state.messages.append({"role": "assistant", "content": reponse.text})
+            try:
+                reponse = st.session_state.chat.send_message(message)
+                st.session_state.messages.append({"role": "assistant", "content": reponse.text})
+            except Exception:
+                st.session_state.messages.append({"role": "assistant", "content": "Le serveur de Google est surcharge. Reessaie dans un instant."})
         st.rerun()
