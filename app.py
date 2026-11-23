@@ -12,7 +12,7 @@ MODELE = "gemini-2.5-flash-lite"
 st.set_page_config(page_title="Mon IA personnelle", page_icon="🧠", layout="wide")
 
 TAILLES = {"Petite": "0.92rem", "Normale": "1rem", "Grande": "1.12rem"}
-ACCENTS = {"Rouge carmin": "#e11d48", "Rouge sombre": "#9f1239", "Gris acier": "#8b8b96", "Blanc cassé": "#d9d9de"}
+ACCENTS = {"Rouge carmin": "#e11d48", "Rouge sombre": "#be123c", "Gris acier": "#9a9aa6", "Blanc cassé": "#dcdce1"}
 
 taille = TAILLES.get(st.session_state.get("taille", "Normale"), "1rem")
 accent = ACCENTS.get(st.session_state.get("accent", "Rouge carmin"), "#e11d48")
@@ -20,50 +20,53 @@ accent = ACCENTS.get(st.session_state.get("accent", "Rouge carmin"), "#e11d48")
 CSS = """
 <style>
 :root { color-scheme: dark; }
-.stApp { background: #0b0b0d; }
+.stApp {
+    background: linear-gradient(160deg, #2b2b33 0%, #1f1f26 45%, #34343d 100%);
+    background-attachment: fixed;
+}
 .stApp, .stApp p, .stApp span, .stApp label, .stApp li, .stApp div,
 .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stMarkdown {
-    color: #ededf0 !important;
+    color: #e8e8ec !important;
     font-size: __TAILLE__;
 }
-.stCaption, [data-testid="stCaptionContainer"], .stApp small { color: #8b8b96 !important; }
+.stCaption, [data-testid="stCaptionContainer"], .stApp small { color: #a3a3ae !important; }
 header[data-testid="stHeader"] { background: transparent; }
 section[data-testid="stSidebar"] {
-    background: #101013;
-    border-right: 1px solid #26262c;
+    background: linear-gradient(180deg, #3a3a44 0%, #2c2c34 100%);
+    border-right: 1px solid #4a4a55;
 }
 .titre {
     font-size: 2.2rem;
     font-weight: 800;
     letter-spacing: -0.5px;
-    color: #ededf0 !important;
+    color: #f2f2f5 !important;
     margin-bottom: 0;
     border-left: 4px solid __ACCENT__;
     padding-left: 14px;
 }
-.sous-titre { color: #8b8b96 !important; margin: 4px 0 1.6rem 18px; }
+.sous-titre { color: #a3a3ae !important; margin: 4px 0 1.6rem 18px; }
 .carte {
-    background: #141418;
-    border: 1px solid #2a2a31;
+    background: linear-gradient(145deg, #3c3c46, #30303a);
+    border: 1px solid #55555f;
     border-top: 2px solid __ACCENT__;
     border-radius: 4px;
     padding: 18px;
     min-height: 110px;
 }
-.carte b { color: #ededf0 !important; font-size: 1.05rem; letter-spacing: 0.3px; }
-.carte span { color: #8b8b96 !important; }
+.carte b { color: #f2f2f5 !important; font-size: 1.05rem; letter-spacing: 0.3px; }
+.carte span { color: #b4b4be !important; }
 div[data-testid="stChatMessage"] {
-    background: #141418;
-    border: 1px solid #26262c;
+    background: linear-gradient(145deg, #3a3a44, #2f2f38);
+    border: 1px solid #50505a;
     border-radius: 4px;
     padding: 14px 18px;
     margin-bottom: 10px;
 }
-[data-testid="stBottom"], [data-testid="stBottom"] > div { background: #0b0b0d !important; }
+[data-testid="stBottom"], [data-testid="stBottom"] > div { background: #26262d !important; }
 [data-testid="stChatInput"],
 [data-testid="stChatInput"] > div,
 [data-testid="stChatInputContainer"] {
-    background: #141418 !important;
+    background: #34343e !important;
     border: 1px solid __ACCENT__ !important;
     border-radius: 4px !important;
 }
@@ -76,8 +79,8 @@ div[data-testid="stChatMessage"] {
     opacity: 1 !important;
 }
 [data-testid="stChatInput"] textarea::placeholder, textarea::placeholder {
-    color: #8b8b96 !important;
-    -webkit-text-fill-color: #8b8b96 !important;
+    color: #a3a3ae !important;
+    -webkit-text-fill-color: #a3a3ae !important;
     opacity: 1 !important;
 }
 [data-testid="stChatInput"] button {
@@ -88,45 +91,45 @@ div[data-testid="stChatMessage"] {
 .stTextInput input, .stTextArea textarea {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
-    background: #141418 !important;
+    background: #34343e !important;
     border-radius: 4px !important;
 }
 .stButton > button, .stDownloadButton > button {
     border-radius: 4px;
-    border: 1px solid #34343c;
-    background: #18181d;
-    color: #ededf0 !important;
+    border: 1px solid #5a5a66;
+    background: #3a3a44;
+    color: #f0f0f3 !important;
     width: 100%;
     font-weight: 600;
 }
 .stButton > button:hover, .stDownloadButton > button:hover {
     border-color: __ACCENT__;
     color: #ffffff !important;
-    background: #1e1e24;
+    background: #44444f;
 }
-.stButton > button p, .stDownloadButton > button p { color: #ededf0 !important; }
+.stButton > button p, .stDownloadButton > button p { color: #f0f0f3 !important; }
 div[data-baseweb="select"] > div {
-    background: #141418 !important;
-    border: 1px solid #34343c !important;
+    background: #34343e !important;
+    border: 1px solid #5a5a66 !important;
     border-radius: 4px !important;
 }
-div[data-baseweb="select"] * { color: #ededf0 !important; }
+div[data-baseweb="select"] * { color: #f0f0f3 !important; }
 [data-testid="stExpander"] {
-    background: #141418;
-    border: 1px solid #26262c;
+    background: #34343e;
+    border: 1px solid #50505a;
     border-radius: 4px;
 }
 [data-testid="stAlert"] {
-    background: #1a1417 !important;
+    background: #3a2f33 !important;
     border: 1px solid __ACCENT__;
     border-radius: 4px;
 }
 [data-testid="stFileUploader"] section {
-    background: #141418;
-    border: 1px dashed #34343c;
+    background: #34343e;
+    border: 1px dashed #5a5a66;
     border-radius: 4px;
 }
-hr { border-color: #26262c !important; }
+hr { border-color: #4a4a55 !important; }
 </style>
 """
 st.markdown(CSS.replace("__ACCENT__", accent).replace("__TAILLE__", taille), unsafe_allow_html=True)
@@ -183,6 +186,13 @@ def url_memoire():
     return "https://api.github.com/repos/" + lire_secret("GITHUB_REPO") + "/contents/" + FICHIER_MEMOIRE
 
 
+def lire_fichier(nom):
+    if os.path.exists(nom):
+        with open(nom, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    return ""
+
+
 def lire_memoire():
     if github_actif():
         try:
@@ -219,13 +229,6 @@ def ajouter_memoire(info):
     ancien = lire_memoire()
     nouveau = (ancien.rstrip("\n") + "\n" if ancien.strip() else "") + info + "\n"
     return ecrire_memoire(nouveau)
-
-
-def lire_fichier(nom):
-    if os.path.exists(nom):
-        with open(nom, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    return ""
 
 
 def nouvelle_conversation():
@@ -333,7 +336,7 @@ if not st.session_state.messages and not st.session_state.en_attente:
         st.rerun()
 
 for m in st.session_state.messages:
-    with st.chat_message(m["role"], avatar="🧑\u200d🎨" if m["role"] == "user" else "🧠"):
+    with st.chat_message(m["role"], avatar="🧑‍🎨" if m["role"] == "user" else "🧠"):
         st.write(m["content"])
 
 
