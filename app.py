@@ -40,7 +40,7 @@ CSS = """
 .stCaption, [data-testid="stCaptionContainer"], .stApp small { color: #9a9aa6 !important; }
 header[data-testid="stHeader"] { background: transparent; }
 section[data-testid="stSidebar"] { background: #131317; border-right: 1px solid #26262d; }
-.block-container { padding-bottom: 15rem !important; max-width: 900px; }
+.block-container { padding-bottom: 12rem !important; max-width: 900px; }
 .titre {
     font-size: 2rem; font-weight: 700; letter-spacing: -0.4px;
     color: #f2f2f5 !important; margin-bottom: 0;
@@ -57,8 +57,8 @@ section[data-testid="stSidebar"] { background: #131317; border-right: 1px solid 
 .ligne.moi { justify-content: flex-end; }
 .ligne.ia { justify-content: flex-start; }
 .bulle {
-    max-width: 62%; padding: 10px 14px; border-radius: 14px;
-    line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; font-size: 0.97rem;
+    max-width: 48%; min-width: 60px; padding: 9px 13px; border-radius: 14px;
+    line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; font-size: 0.95rem;
 }
 .bulle.moi { background: #34343c; border: 1px solid #44444e; border-bottom-right-radius: 4px; }
 .bulle.ia { background: #1d1d23; border: 1px solid #2c2c34; border-bottom-left-radius: 4px; }
@@ -108,12 +108,6 @@ section[data-testid="stSidebar"] { background: #131317; border-right: 1px solid 
     border: 1px solid rgba(255,255,255,0.2);
 }
 .sugg .stButton > button p { color: #ffffff !important; }
-[data-testid="stBottom"] .stButton > button,
-[data-testid="stBottom"] [data-testid="stPopover"] > div > button {
-    width: 36px !important; min-width: 36px !important; height: 32px !important;
-    padding: 0 !important; font-size: 0.95rem !important; border-radius: 6px !important;
-    background: #1a1a1f !important; border: 1px solid #36363f !important;
-}
 div[data-baseweb="select"] > div { background: #1a1a1f !important; border: 1px solid #36363f !important; border-radius: 6px !important; }
 div[data-baseweb="select"] * { color: #eeeef1 !important; }
 [data-testid="stExpander"], [data-testid="stPopover"] { background: #16161b; border: 1px solid #2a2a31; border-radius: 6px; }
@@ -123,7 +117,7 @@ hr { border-color: #26262d !important; }
 @media (max-width: 900px) {
     .titre { font-size: 1.5rem; }
     .carte { min-height: 80px; padding: 12px; }
-    .bulle { max-width: 88%; }
+    .bulle { max-width: 82%; }
     .block-container { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
 }
 </style>
@@ -363,6 +357,29 @@ def ouvrir_archive(index):
         st.session_state.en_attente = None
 
 
+def envoyer(contenu, affichage):
+    st.session_state.messages.append({"role": "user", "content": affichage, "envoi": contenu})
+    st.session_state.a_repondre = True
+    st.rerun()
+
+
+def traiter(message):
+    if message.lower().startswith("retiens"):
+        st.session_state.messages.append({"role": "user", "content": message})
+        info = message.split(":", 1)[-1].strip()
+        if info:
+            st.session_state.en_attente = info
+        st.rerun()
+        return
+    adresses = re.findall(r"https?://[^\s]+", message)
+    contenu = message
+    for adr in adresses[:2]:
+        page = lire_page_web(adr)
+        if page:
+            contenu += "\n\nContenu de la page " + adr + " :\n" + page
+    envoyer(contenu, message)
+
+
 cle = lire_fichier(FICHIER_CLE)
 if not cle and "GEMINI_API_KEY" in st.secrets:
     cle = st.secrets["GEMINI_API_KEY"]
@@ -387,6 +404,53 @@ with st.sidebar:
     if st.button("➕ Nouvelle conversation"):
         nouvelle_conversation()
         st.rerun()
+
+    st.markdown("**Ajouter à la conversation**")
+    with st.expander("📎 Pièce jointe"):
+        fichier = st.file_uploader("Fichier (texte, PDF, livre)", type=["txt", "md", "csv", "py", "json", "pdf"])
+        question_fichier = st.text_input("Que veux-tu faire avec ?", key="question_fichier")
+        c_a, c_b = st.columns(2)
+        if fichier is not None and c_a.button("Envoyer", key="env_fichier"):
+            contenu_fichier = lire_fichier_envoye(fichier)
+            if contenu_fichier:
+                demande = (question_fichier or "Résume ce fichier.") + "\n\nContenu de " + fichier.name + " :\n" + contenu_fichier
+                envoyer(demande, "📎 " + fichier.name + " : " + (question_fichier or "Résume ce fichier."))
+            else:
+                st.warning("Impossible de lire ce fichier.")
+        if fichier is not None and c_b.button("Apprendre", key="app_fichier"):
+            contenu_fichier = lire_fichier_envoye(fichier)
+            resume = resumer_pour_memoire(contenu_fichier, fichier.name) if contenu_fichier else ""
+            if resume:
+                st.session_state.en_attente = resume
+                st.rerun()
+            else:
+                st.warning("Impossible de résumer ce fichier.")
+    with st.expander("🎤 Message vocal"):
+        audio = st.audio_input("Appuie, parle, puis arrête")
+        if audio is not None and st.button("Envoyer ma voix", key="env_voix"):
+            try:
+                client_voix = genai.Client(api_key=cle)
+                resultat = client_voix.models.generate_content(
+                    model=MODELES_GEMINI[0],
+                    contents=[
+                        "Transcris fidèlement cet audio, sans rien ajouter.",
+                        types.Part.from_bytes(data=audio.getvalue(), mime_type="audio/wav"),
+                    ],
+                )
+                texte_voix = (resultat.text or "").strip()
+            except Exception:
+                texte_voix = ""
+            if texte_voix:
+                traiter(texte_voix)
+            else:
+                st.warning("Je n'ai pas réussi à comprendre l'audio. Réessaie.")
+    if st.button("🧠 Retenir la dernière réponse"):
+        dernieres = [m for m in st.session_state.messages if m["role"] == "assistant"]
+        if dernieres:
+            st.session_state.en_attente = dernieres[-1]["content"][:1500]
+            st.rerun()
+
+    st.markdown("---")
     st.markdown("**Conversations récentes**")
     archives = st.session_state.get("archives", [])
     if archives:
@@ -444,29 +508,6 @@ def afficher_bulle(role, texte):
     classe = "moi" if role == "user" else "ia"
     propre = texte.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     st.markdown('<div class="ligne ' + classe + '"><div class="bulle ' + classe + '">' + propre + '</div></div>', unsafe_allow_html=True)
-
-
-def envoyer(contenu, affichage):
-    st.session_state.messages.append({"role": "user", "content": affichage, "envoi": contenu})
-    st.session_state.a_repondre = True
-    st.rerun()
-
-
-def traiter(message):
-    if message.lower().startswith("retiens"):
-        st.session_state.messages.append({"role": "user", "content": message})
-        info = message.split(":", 1)[-1].strip()
-        if info:
-            st.session_state.en_attente = info
-        st.rerun()
-        return
-    adresses = re.findall(r"https?://[^\s]+", message)
-    contenu = message
-    for adr in adresses[:2]:
-        page = lire_page_web(adr)
-        if page:
-            contenu += "\n\nContenu de la page " + adr + " :\n" + page
-    envoyer(contenu, message)
 
 
 st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
@@ -532,53 +573,3 @@ else:
     message = st.chat_input("Écris ta demande... Colle une adresse web pour que je la lise.")
     if message:
         traiter(message)
-
-    with st.container():
-        i1, i2, i3, _vide = st.columns([1, 1, 1, 12])
-        with i1:
-            with st.popover("📎"):
-                st.caption("Joindre un fichier ou un livre (texte, PDF)")
-                fichier = st.file_uploader("Fichier", type=["txt", "md", "csv", "py", "json", "pdf"], label_visibility="collapsed")
-                question_fichier = st.text_input("Que veux-tu faire avec ?", key="question_fichier")
-                c_a, c_b = st.columns(2)
-                if fichier is not None and c_a.button("Envoyer"):
-                    contenu_fichier = lire_fichier_envoye(fichier)
-                    if contenu_fichier:
-                        demande = (question_fichier or "Résume ce fichier.") + "\n\nContenu de " + fichier.name + " :\n" + contenu_fichier
-                        envoyer(demande, "📎 " + fichier.name + " : " + (question_fichier or "Résume ce fichier."))
-                    else:
-                        st.warning("Impossible de lire ce fichier.")
-                if fichier is not None and c_b.button("Apprendre"):
-                    contenu_fichier = lire_fichier_envoye(fichier)
-                    resume = resumer_pour_memoire(contenu_fichier, fichier.name) if contenu_fichier else ""
-                    if resume:
-                        st.session_state.en_attente = resume
-                        st.rerun()
-                    else:
-                        st.warning("Impossible de résumer ce fichier.")
-        with i2:
-            with st.popover("🎤"):
-                audio = st.audio_input("Appuie, parle, puis arrête")
-                if audio is not None and st.button("Envoyer ma voix"):
-                    try:
-                        client_voix = genai.Client(api_key=cle)
-                        resultat = client_voix.models.generate_content(
-                            model=MODELES_GEMINI[0],
-                            contents=[
-                                "Transcris fidèlement cet audio, sans rien ajouter.",
-                                types.Part.from_bytes(data=audio.getvalue(), mime_type="audio/wav"),
-                            ],
-                        )
-                        texte_voix = (resultat.text or "").strip()
-                    except Exception:
-                        texte_voix = ""
-                    if texte_voix:
-                        traiter(texte_voix)
-                    else:
-                        st.warning("Je n'ai pas réussi à comprendre l'audio. Réessaie.")
-        with i3:
-            if st.button("🧠", help="Retenir la dernière réponse en mémoire"):
-                dernieres = [m for m in st.session_state.messages if m["role"] == "assistant"]
-                if dernieres:
-                    st.session_state.en_attente = dernieres[-1]["content"][:1500]
-                    st.rerun()
