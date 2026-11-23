@@ -21,8 +21,40 @@ CSS = """
 <style>
 :root { color-scheme: dark; }
 .stApp {
-    background: linear-gradient(160deg, #2b2b33 0%, #1f1f26 45%, #34343d 100%);
+    background-color: #08080a;
+    background-image:
+        linear-gradient(135deg, transparent 0%, transparent 100%),
+        conic-gradient(from 210deg at 100% 0%, rgba(120,120,135,0.22) 0deg, transparent 60deg),
+        conic-gradient(from 30deg at 0% 100%, rgba(120,120,135,0.18) 0deg, transparent 55deg),
+        radial-gradient(circle at 92% 18%, rgba(110,110,125,0.20) 0%, transparent 22%),
+        radial-gradient(circle at 8% 82%, rgba(110,110,125,0.16) 0%, transparent 24%);
     background-attachment: fixed;
+}
+.stApp::before {
+    content: "";
+    position: fixed;
+    top: 8%;
+    right: 4%;
+    width: 220px;
+    height: 220px;
+    border: 1px solid rgba(160,160,175,0.18);
+    transform: rotate(45deg);
+    background: linear-gradient(145deg, rgba(90,90,105,0.18), rgba(30,30,38,0.05));
+    pointer-events: none;
+    z-index: 0;
+}
+.stApp::after {
+    content: "";
+    position: fixed;
+    bottom: 12%;
+    right: 14%;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    border: 1px solid rgba(160,160,175,0.15);
+    background: linear-gradient(145deg, rgba(100,100,115,0.16), rgba(20,20,26,0.02));
+    pointer-events: none;
+    z-index: 0;
 }
 .stApp, .stApp p, .stApp span, .stApp label, .stApp li, .stApp div,
 .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stMarkdown {
@@ -32,11 +64,11 @@ CSS = """
 .stCaption, [data-testid="stCaptionContainer"], .stApp small { color: #a3a3ae !important; }
 header[data-testid="stHeader"] { background: transparent; }
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #3a3a44 0%, #2c2c34 100%);
-    border-right: 1px solid #4a4a55;
+    background: linear-gradient(180deg, #17171c 0%, #0e0e12 100%);
+    border-right: 1px solid #2a2a32;
 }
 .titre {
-    font-size: 2.2rem;
+    font-size: 2.3rem;
     font-weight: 800;
     letter-spacing: -0.5px;
     color: #f2f2f5 !important;
@@ -46,58 +78,68 @@ section[data-testid="stSidebar"] {
 }
 .sous-titre { color: #a3a3ae !important; margin: 4px 0 1.6rem 18px; }
 .carte {
-    background: linear-gradient(145deg, #3c3c46, #30303a);
-    border: 1px solid #55555f;
+    background: linear-gradient(145deg, #2a2a32, #1b1b21);
+    border: 1px solid #3a3a44;
     border-top: 2px solid __ACCENT__;
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 18px;
     min-height: 110px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 .carte b { color: #f2f2f5 !important; font-size: 1.05rem; letter-spacing: 0.3px; }
 .carte span { color: #b4b4be !important; }
 div[data-testid="stChatMessage"] {
-    background: linear-gradient(145deg, #3a3a44, #2f2f38);
-    border: 1px solid #50505a;
-    border-radius: 4px;
+    background: linear-gradient(145deg, #25252c, #18181d);
+    border: 1px solid #34343d;
+    border-radius: 6px;
     padding: 14px 18px;
     margin-bottom: 10px;
 }
-[data-testid="stBottom"], [data-testid="stBottom"] > div { background: #26262d !important; }
-[data-testid="stChatInput"],
+[data-testid="stBottom"], [data-testid="stBottom"] > div { background: transparent !important; }
+[data-testid="stChatInput"] {
+    background: #1b1b21 !important;
+    border: 1px solid #44444f !important;
+    border-radius: 8px !important;
+    min-height: 110px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
+}
 [data-testid="stChatInput"] > div,
 [data-testid="stChatInputContainer"] {
-    background: #34343e !important;
-    border: 1px solid __ACCENT__ !important;
-    border-radius: 4px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 8px !important;
+    min-height: 100px !important;
 }
 [data-testid="stChatInput"] textarea,
-[data-testid="stChatInputTextArea"], textarea {
+[data-testid="stChatInputTextArea"] {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
     caret-color: __ACCENT__ !important;
     background-color: transparent !important;
     opacity: 1 !important;
+    min-height: 90px !important;
+    font-size: 1.05rem !important;
 }
-[data-testid="stChatInput"] textarea::placeholder, textarea::placeholder {
-    color: #a3a3ae !important;
-    -webkit-text-fill-color: #a3a3ae !important;
+[data-testid="stChatInput"] textarea::placeholder {
+    color: #8e8e9a !important;
+    -webkit-text-fill-color: #8e8e9a !important;
     opacity: 1 !important;
 }
 [data-testid="stChatInput"] button {
     background: __ACCENT__ !important;
-    border-radius: 3px !important;
+    border-radius: 6px !important;
 }
 [data-testid="stChatInput"] button svg { fill: #ffffff !important; color: #ffffff !important; }
 .stTextInput input, .stTextArea textarea {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
-    background: #34343e !important;
-    border-radius: 4px !important;
+    background: #1b1b21 !important;
+    border-radius: 6px !important;
 }
 .stButton > button, .stDownloadButton > button {
-    border-radius: 4px;
-    border: 1px solid #5a5a66;
-    background: #3a3a44;
+    border-radius: 6px;
+    border: 1px solid #3f3f4a;
+    background: #202027;
     color: #f0f0f3 !important;
     width: 100%;
     font-weight: 600;
@@ -105,31 +147,31 @@ div[data-testid="stChatMessage"] {
 .stButton > button:hover, .stDownloadButton > button:hover {
     border-color: __ACCENT__;
     color: #ffffff !important;
-    background: #44444f;
+    background: #2a2a33;
 }
 .stButton > button p, .stDownloadButton > button p { color: #f0f0f3 !important; }
 div[data-baseweb="select"] > div {
-    background: #34343e !important;
-    border: 1px solid #5a5a66 !important;
-    border-radius: 4px !important;
+    background: #1b1b21 !important;
+    border: 1px solid #3f3f4a !important;
+    border-radius: 6px !important;
 }
 div[data-baseweb="select"] * { color: #f0f0f3 !important; }
 [data-testid="stExpander"] {
-    background: #34343e;
-    border: 1px solid #50505a;
-    border-radius: 4px;
+    background: #17171c;
+    border: 1px solid #2f2f38;
+    border-radius: 6px;
 }
 [data-testid="stAlert"] {
-    background: #3a2f33 !important;
+    background: #1d1a1c !important;
     border: 1px solid __ACCENT__;
-    border-radius: 4px;
+    border-radius: 6px;
 }
 [data-testid="stFileUploader"] section {
-    background: #34343e;
-    border: 1px dashed #5a5a66;
-    border-radius: 4px;
+    background: #17171c;
+    border: 1px dashed #3f3f4a;
+    border-radius: 6px;
 }
-hr { border-color: #4a4a55 !important; }
+hr { border-color: #2a2a32 !important; }
 </style>
 """
 st.markdown(CSS.replace("__ACCENT__", accent).replace("__TAILLE__", taille), unsafe_allow_html=True)
