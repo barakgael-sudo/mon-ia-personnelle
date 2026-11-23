@@ -1,4 +1,6 @@
 import os
+import base64
+import requests
 import streamlit as st
 from google import genai
 
@@ -9,122 +11,7 @@ MODELE = "gemini-2.5-flash-lite"
 st.set_page_config(page_title="Mon IA personnelle", page_icon="🧠", layout="wide")
 
 CSS = """
-<style>
-:root { color-scheme: dark; }
-.stApp {
-    background:
-        radial-gradient(circle at 15% 0%, rgba(124,58,237,0.35) 0%, transparent 45%),
-        radial-gradient(circle at 90% 10%, rgba(37,99,235,0.28) 0%, transparent 40%),
-        radial-gradient(circle at 50% 100%, rgba(236,72,153,0.15) 0%, transparent 45%),
-        #0a0a12;
-}
-.stApp, .stApp p, .stApp span, .stApp label, .stApp li, .stApp div,
-.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stMarkdown, .stCaption {
-    color: #f1f1f8 !important;
-}
-.stApp small, .stCaption, [data-testid="stCaptionContainer"] { color: #a9a9c8 !important; }
-header[data-testid="stHeader"] { background: transparent; }
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #12122a 0%, #0c0c1a 100%);
-    border-right: 1px solid rgba(167,139,250,0.25);
-}
-.titre {
-    font-size: 2.4rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
-    background: linear-gradient(90deg, #c4b5fd, #7dd3fc, #f9a8d4);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent !important;
-    margin-bottom: 0;
-}
-.sous-titre { color: #a9a9c8 !important; margin-top: 0; margin-bottom: 1.6rem; font-size: 1.05rem; }
-.carte {
-    background: linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
-    border: 1px solid rgba(167,139,250,0.35);
-    border-radius: 18px;
-    padding: 18px;
-    min-height: 105px;
-    box-shadow: 0 8px 30px rgba(124,58,237,0.15);
-    backdrop-filter: blur(8px);
-}
-.carte b { color: #c4b5fd !important; font-size: 1.05rem; }
-div[data-testid="stChatMessage"] {
-    background: linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-    border: 1px solid rgba(125,211,252,0.25);
-    border-radius: 18px;
-    padding: 14px 18px;
-    margin-bottom: 12px;
-    box-shadow: 0 6px 24px rgba(0,0,0,0.35);
-}
-[data-testid="stBottom"], [data-testid="stBottom"] > div {
-    background: transparent !important;
-}
-[data-testid="stChatInput"],
-[data-testid="stChatInput"] > div,
-[data-testid="stChatInputContainer"] {
-    background: #14142e !important;
-    border: 1px solid rgba(167,139,250,0.7) !important;
-    border-radius: 22px !important;
-    box-shadow: 0 0 25px rgba(124,58,237,0.35);
-}
-[data-testid="stChatInput"] textarea,
-[data-testid="stChatInputTextArea"],
-textarea {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    caret-color: #c4b5fd !important;
-    background-color: transparent !important;
-    opacity: 1 !important;
-}
-[data-testid="stChatInput"] textarea::placeholder,
-textarea::placeholder {
-    color: #b4b4d6 !important;
-    -webkit-text-fill-color: #b4b4d6 !important;
-    opacity: 1 !important;
-}
-[data-testid="stChatInput"] button {
-    background: linear-gradient(135deg, #7c3aed, #2563eb) !important;
-    border-radius: 14px !important;
-}
-[data-testid="stChatInput"] button svg { fill: #ffffff !important; color: #ffffff !important; }
-.stTextInput input {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    background: #14142e !important;
-}
-.stButton > button {
-    border-radius: 14px;
-    border: 1px solid rgba(167,139,250,0.5);
-    background: linear-gradient(135deg, rgba(124,58,237,0.55), rgba(37,99,235,0.45));
-    color: #ffffff !important;
-    width: 100%;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-.stButton > button:hover {
-    border-color: #f9a8d4;
-    box-shadow: 0 0 18px rgba(249,168,212,0.45);
-    transform: translateY(-1px);
-}
-.stButton > button p { color: #ffffff !important; }
-div[data-baseweb="select"] > div {
-    background: rgba(25,25,55,0.95) !important;
-    border: 1px solid rgba(167,139,250,0.4) !important;
-    border-radius: 12px !important;
-}
-div[data-baseweb="select"] * { color: #f1f1f8 !important; }
-[data-testid="stExpander"] {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(167,139,250,0.3);
-    border-radius: 14px;
-}
-[data-testid="stAlert"] {
-    background: rgba(37,99,235,0.18) !important;
-    border: 1px solid rgba(125,211,252,0.4);
-    border-radius: 14px;
-}
-hr { border-color: rgba(167,139,250,0.25) !important; }
-</style>
+
 """
 st.markdown(CSS, unsafe_allow_html=True)
 
@@ -151,16 +38,73 @@ SUGGESTIONS = {
 }
 
 
-def lire_fichier(nom):
-    if os.path.exists(nom):
-        with open(nom, "r", encoding="utf-8") as f:
+def lire_secret(nom):
+    try:
+        return st.secrets[nom]
+    except Exception:
+        return ""
+
+
+def github_actif():
+    return bool(lire_secret("GITHUB_TOKEN") and lire_secret("GITHUB_REPO"))
+
+
+def entetes_github():
+    return {
+        "Authorization": "Bearer " + lire_secret("GITHUB_TOKEN"),
+        "Accept": "application/vnd.github+json",
+    }
+
+
+def url_memoire():
+    return "https://api.github.com/repos/" + lire_secret("GITHUB_REPO") + "/contents/" + FICHIER_MEMOIRE
+
+
+def lire_memoire():
+    if github_actif():
+        try:
+            r = requests.get(url_memoire(), headers=entetes_github(), timeout=15)
+            if r.status_code == 200:
+                return base64.b64decode(r.json()["content"]).decode("utf-8").strip()
+            return ""
+        except Exception:
+            return ""
+    if os.path.exists(FICHIER_MEMOIRE):
+        with open(FICHIER_MEMOIRE, "r", encoding="utf-8") as f:
             return f.read().strip()
     return ""
 
 
 def ajouter_memoire(info):
+    if github_actif():
+        try:
+            r = requests.get(url_memoire(), headers=entetes_github(), timeout=15)
+            sha = None
+            ancien = ""
+            if r.status_code == 200:
+                sha = r.json()["sha"]
+                ancien = base64.b64decode(r.json()["content"]).decode("utf-8")
+            nouveau = (ancien.rstrip("\n") + "\n" if ancien.strip() else "") + info + "\n"
+            corps = {
+                "message": "Ajout a la memoire",
+                "content": base64.b64encode(nouveau.encode("utf-8")).decode("utf-8"),
+            }
+            if sha:
+                corps["sha"] = sha
+            r2 = requests.put(url_memoire(), headers=entetes_github(), json=corps, timeout=15)
+            return r2.status_code in (200, 201)
+        except Exception:
+            return False
     with open(FICHIER_MEMOIRE, "a", encoding="utf-8") as f:
         f.write(info + "\n")
+    return True
+
+
+def lire_fichier(nom):
+    if os.path.exists(nom):
+        with open(nom, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    return ""
 
 
 def nouvelle_conversation():
@@ -173,7 +117,7 @@ cle = lire_fichier(FICHIER_CLE)
 if not cle and "GEMINI_API_KEY" in st.secrets:
     cle = st.secrets["GEMINI_API_KEY"]
 if not cle:
-    st.markdown('<p class="titre">Mon IA personnelle</p>', unsafe_allow_html=True)
+    st.markdown(' Mon IA personnelle', unsafe_allow_html=True)
     st.warning("Colle ta cle API Gemini pour commencer.")
     nouvelle = st.text_input("Cle API Gemini", type="password")
     if st.button("Enregistrer la cle") and nouvelle.strip():
@@ -181,6 +125,8 @@ if not cle:
             f.write(nouvelle.strip())
         st.rerun()
     st.stop()
+
+memoire_actuelle = lire_memoire()
 
 with st.sidebar:
     st.markdown("### 🧠 Mon IA")
@@ -194,8 +140,7 @@ with st.sidebar:
     langue = st.selectbox("Langue des réponses", list(LANGUES.keys()), key="langue")
     st.caption("Après un changement de réglage, clique sur Nouvelle conversation.")
     st.markdown("---")
-    st.markdown("**💾 Mémoire**")
-    memoire_actuelle = lire_fichier(FICHIER_MEMOIRE)
+    st.markdown("**💾 Mémoire" + (" permanente" if github_actif() else "") + "**")
     nb = len([l for l in memoire_actuelle.split("\n") if l.strip()])
     st.caption(str(nb) + " information(s) retenue(s)")
     with st.expander("Voir la mémoire"):
@@ -222,14 +167,14 @@ if "chat" not in st.session_state:
     st.session_state.messages = []
     st.session_state.en_attente = None
 
-st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
-st.markdown('<p class="sous-titre">Ton assistant personnel pour toutes tes activités.</p>', unsafe_allow_html=True)
+st.markdown(' Bonjour Baraka', unsafe_allow_html=True)
+st.markdown(' Ton assistant personnel pour toutes tes activités.', unsafe_allow_html=True)
 
 if not st.session_state.messages and not st.session_state.en_attente:
     c1, c2, c3 = st.columns(3)
-    c1.markdown('<div class="carte"><b>🎨 Créer</b><br>Idées de designs, textes, publications.</div>', unsafe_allow_html=True)
-    c2.markdown('<div class="carte"><b>📊 Calculer</b><br>Chiffres, budgets, devis, statistiques.</div>', unsafe_allow_html=True)
-    c3.markdown('<div class="carte"><b>🧩 Organiser</b><br>Projets, clients, tâches du jour.</div>', unsafe_allow_html=True)
+    c1.markdown(' 🎨 Créer Idées de designs, textes, publications.', unsafe_allow_html=True)
+    c2.markdown(' 📊 Calculer Chiffres, budgets, devis, statistiques.', unsafe_allow_html=True)
+    c3.markdown(' 🧩 Organiser Projets, clients, tâches du jour.', unsafe_allow_html=True)
     st.markdown("")
     s1, s2, s3 = st.columns(3)
     cles_sug = list(SUGGESTIONS.keys())
@@ -244,7 +189,7 @@ if not st.session_state.messages and not st.session_state.en_attente:
         st.rerun()
 
 for m in st.session_state.messages:
-    with st.chat_message(m["role"], avatar="🧑\u200d🎨" if m["role"] == "user" else "🧠"):
+    with st.chat_message(m["role"], avatar="🧑‍🎨" if m["role"] == "user" else "🧠"):
         st.write(m["content"])
 
 
@@ -273,8 +218,11 @@ if st.session_state.en_attente:
     st.info("Le noyau veut ajouter à sa mémoire : " + info)
     col1, col2 = st.columns(2)
     if col1.button("✅ Approuver"):
-        ajouter_memoire(info)
-        st.session_state.messages.append({"role": "assistant", "content": "C'est retenu."})
+        if ajouter_memoire(info):
+            texte_rep = "C'est retenu."
+        else:
+            texte_rep = "Je n'ai pas réussi à enregistrer. Vérifie le jeton GitHub dans les Secrets."
+        st.session_state.messages.append({"role": "assistant", "content": texte_rep})
         st.session_state.en_attente = None
         st.rerun()
     if col2.button("❌ Refuser"):
