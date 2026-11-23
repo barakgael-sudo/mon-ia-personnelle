@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import base64
 import requests
 import streamlit as st
@@ -10,7 +11,8 @@ from google.genai import types
 
 FICHIER_CLE = "cle.txt"
 FICHIER_MEMOIRE = "memoire.txt"
-MODELE = "gemini-2.5-flash-lite"
+MODELES_GEMINI = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
+MODELE_GROQ = "llama-3.3-70b-versatile"
 
 st.set_page_config(page_title="Mon IA personnelle", page_icon="🧠", layout="wide")
 
@@ -32,32 +34,6 @@ CSS = """
         radial-gradient(circle at 8% 82%, rgba(110,110,125,0.16) 0%, transparent 24%);
     background-attachment: fixed;
 }
-.stApp::before {
-    content: "";
-    position: fixed;
-    top: 8%;
-    right: 4%;
-    width: 200px;
-    height: 200px;
-    border: 1px solid rgba(160,160,175,0.18);
-    transform: rotate(45deg);
-    background: linear-gradient(145deg, rgba(90,90,105,0.18), rgba(30,30,38,0.05));
-    pointer-events: none;
-    z-index: 0;
-}
-.stApp::after {
-    content: "";
-    position: fixed;
-    bottom: 24%;
-    right: 12%;
-    width: 120px;
-    height: 120px;
-    border-radius: 50%;
-    border: 1px solid rgba(160,160,175,0.15);
-    background: linear-gradient(145deg, rgba(100,100,115,0.16), rgba(20,20,26,0.02));
-    pointer-events: none;
-    z-index: 0;
-}
 .stApp, .stApp p, .stApp span, .stApp label, .stApp li, .stApp div,
 .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stMarkdown {
     color: #e8e8ec !important;
@@ -69,9 +45,9 @@ section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #17171c 0%, #0e0e12 100%);
     border-right: 1px solid #2a2a32;
 }
-.block-container { padding-bottom: 13rem !important; max-width: 1100px; }
+.block-container { padding-bottom: 13rem !important; max-width: 1250px; }
 .titre {
-    font-size: 2.3rem;
+    font-size: 2.2rem;
     font-weight: 800;
     letter-spacing: -0.5px;
     color: #f2f2f5 !important;
@@ -79,7 +55,7 @@ section[data-testid="stSidebar"] {
     border-left: 4px solid __ACCENT__;
     padding-left: 14px;
 }
-.sous-titre { color: #a3a3ae !important; margin: 4px 0 1.6rem 18px; }
+.sous-titre { color: #a3a3ae !important; margin: 4px 0 1.2rem 18px; }
 .carte {
     background: linear-gradient(145deg, #2a2a32, #1b1b21);
     border: 1px solid #3a3a44;
@@ -91,34 +67,69 @@ section[data-testid="stSidebar"] {
 }
 .carte b { color: #f2f2f5 !important; font-size: 1.05rem; letter-spacing: 0.3px; }
 .carte span { color: #b4b4be !important; }
-div[data-testid="stChatMessage"] {
-    background: linear-gradient(145deg, #25252c, #18181d);
+.ligne { display: flex; margin: 8px 0; width: 100%; }
+.ligne.moi { justify-content: flex-end; }
+.ligne.ia { justify-content: flex-start; }
+.bulle {
+    max-width: 78%;
+    padding: 12px 16px;
+    border-radius: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.bulle.moi {
+    background: linear-gradient(135deg, #f87171 0%, #b91c1c 55%, #7f1d1d 100%);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-bottom-right-radius: 4px;
+}
+.bulle.moi, .bulle.moi * { color: #ffffff !important; }
+.bulle.ia {
+    background: linear-gradient(145deg, #2a2a32, #1c1c22);
+    border: 1px solid #3a3a44;
+    border-bottom-left-radius: 4px;
+}
+.points { display: inline-flex; gap: 5px; padding: 4px 2px; }
+.points span {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #f87171;
+    animation: saut 1.2s infinite ease-in-out;
+}
+.points span:nth-child(2) { animation-delay: 0.2s; }
+.points span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes saut { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+.panneau {
+    background: linear-gradient(160deg, #1d1d23, #131318);
+    border: 1px solid #2f2f38;
+    border-radius: 8px;
+    padding: 14px;
+}
+.panneau h4 { margin: 0 0 8px 0; color: #f2f2f5 !important; font-size: 0.95rem; letter-spacing: 0.4px; }
+.souvenir {
+    background: #202027;
     border: 1px solid #34343d;
-    border-radius: 6px;
-    padding: 14px 18px;
-    margin-bottom: 10px;
+    border-left: 3px solid __ACCENT__;
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin: 6px 0;
+    font-size: 0.86rem;
+    line-height: 1.4;
 }
-[data-testid="stBottom"] {
-    background: transparent !important;
-    padding-bottom: 64px !important;
-}
+[data-testid="stBottom"] { background: transparent !important; padding-bottom: 64px !important; }
 [data-testid="stBottom"] > div { background: transparent !important; }
 [data-testid="stChatInput"] {
     background: #1b1b21 !important;
     border: 1px solid #44444f !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
     min-height: 110px !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
 }
-[data-testid="stChatInput"] > div,
-[data-testid="stChatInputContainer"] {
+[data-testid="stChatInput"] > div, [data-testid="stChatInputContainer"] {
     background: transparent !important;
     border: none !important;
-    border-radius: 8px !important;
     min-height: 100px !important;
 }
-[data-testid="stChatInput"] textarea,
-[data-testid="stChatInputTextArea"] {
+[data-testid="stChatInput"] textarea, [data-testid="stChatInputTextArea"] {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
     caret-color: __ACCENT__ !important;
@@ -132,10 +143,7 @@ div[data-testid="stChatMessage"] {
     -webkit-text-fill-color: #8e8e9a !important;
     opacity: 1 !important;
 }
-[data-testid="stChatInput"] button {
-    background: linear-gradient(135deg, #f87171, #991b1b) !important;
-    border-radius: 6px !important;
-}
+[data-testid="stChatInput"] button { background: linear-gradient(135deg, #f87171, #991b1b) !important; border-radius: 6px !important; }
 [data-testid="stChatInput"] button svg { fill: #ffffff !important; color: #ffffff !important; }
 .stTextInput input, .stTextArea textarea {
     color: #ffffff !important;
@@ -151,56 +159,30 @@ div[data-testid="stChatMessage"] {
     width: 100%;
     font-weight: 600;
 }
-.stButton > button:hover, .stDownloadButton > button:hover {
-    border-color: #f87171;
-    color: #ffffff !important;
-    background: #2a2a33;
-}
+.stButton > button:hover, .stDownloadButton > button:hover { border-color: #f87171; color: #ffffff !important; background: #2a2a33; }
 .stButton > button p, .stDownloadButton > button p { color: #f0f0f3 !important; }
 .sugg .stButton > button {
     background: linear-gradient(135deg, #fca5a5 0%, #dc2626 50%, #7f1d1d 100%);
     border: 1px solid rgba(255,255,255,0.2);
-    color: #ffffff !important;
 }
 .sugg .stButton > button p { color: #ffffff !important; }
 .sugg .stButton > button:hover { box-shadow: 0 0 18px rgba(248,113,113,0.5); }
 .icones .stButton > button, .icones [data-testid="stPopover"] > div > button {
-    width: 38px !important;
-    min-width: 38px !important;
-    height: 34px !important;
-    padding: 0 !important;
-    font-size: 1rem !important;
-    border-radius: 6px !important;
-    background: #1b1b21 !important;
-    border: 1px solid #3f3f4a !important;
+    width: 38px !important; min-width: 38px !important; height: 34px !important;
+    padding: 0 !important; font-size: 1rem !important; border-radius: 6px !important;
+    background: #1b1b21 !important; border: 1px solid #3f3f4a !important;
 }
-div[data-baseweb="select"] > div {
-    background: #1b1b21 !important;
-    border: 1px solid #3f3f4a !important;
-    border-radius: 6px !important;
-}
+div[data-baseweb="select"] > div { background: #1b1b21 !important; border: 1px solid #3f3f4a !important; border-radius: 6px !important; }
 div[data-baseweb="select"] * { color: #f0f0f3 !important; }
-[data-testid="stExpander"], [data-testid="stPopover"] {
-    background: #17171c;
-    border: 1px solid #2f2f38;
-    border-radius: 6px;
-}
-[data-testid="stAlert"] {
-    background: #1d1a1c !important;
-    border: 1px solid #dc2626;
-    border-radius: 6px;
-}
-[data-testid="stFileUploader"] section {
-    background: #17171c;
-    border: 1px dashed #3f3f4a;
-    border-radius: 6px;
-}
+[data-testid="stExpander"], [data-testid="stPopover"] { background: #17171c; border: 1px solid #2f2f38; border-radius: 6px; }
+[data-testid="stAlert"] { background: #1d1a1c !important; border: 1px solid #dc2626; border-radius: 6px; }
+[data-testid="stFileUploader"] section { background: #17171c; border: 1px dashed #3f3f4a; border-radius: 6px; }
 hr { border-color: #2a2a32 !important; }
 @media (max-width: 900px) {
-    .titre { font-size: 1.7rem; }
+    .titre { font-size: 1.6rem; }
     .carte { min-height: 80px; padding: 12px; }
+    .bulle { max-width: 92%; }
     .block-container { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
-    .stApp::before, .stApp::after { display: none; }
     [data-testid="stChatInput"] { min-height: 90px !important; }
 }
 </style>
@@ -249,10 +231,7 @@ def github_actif():
 
 
 def entetes_github():
-    return {
-        "Authorization": "Bearer " + lire_secret("GITHUB_TOKEN"),
-        "Accept": "application/vnd.github+json",
-    }
+    return {"Authorization": "Bearer " + lire_secret("GITHUB_TOKEN"), "Accept": "application/vnd.github+json"}
 
 
 def url_memoire():
@@ -310,8 +289,7 @@ def lire_page_web(adresse):
         soupe = BeautifulSoup(r.text, "html.parser")
         for balise in soupe(["script", "style", "nav", "footer"]):
             balise.decompose()
-        texte = " ".join(soupe.get_text(separator=" ").split())
-        return texte[:15000]
+        return " ".join(soupe.get_text(separator=" ").split())[:15000]
     except Exception:
         return ""
 
@@ -321,30 +299,94 @@ def lire_fichier_envoye(fichier):
     try:
         if nom.endswith(".pdf"):
             lecteur = PdfReader(fichier)
-            morceaux = []
-            for page in lecteur.pages[:40]:
-                morceaux.append(page.extract_text() or "")
-            return " ".join(morceaux)[:25000]
+            return " ".join((p.extract_text() or "") for p in lecteur.pages[:40])[:25000]
         return fichier.read().decode("utf-8", errors="ignore")[:25000]
     except Exception:
         return ""
 
 
-def resumer_pour_memoire(texte, source):
-    try:
-        client_r = genai.Client(api_key=cle)
-        res = client_r.models.generate_content(
-            model=MODELE,
-            contents="Resume en 8 points courts maximum les informations utiles et durables de ce texte (source : "
-            + source + "). Reponds en francais, un point par ligne, sans titre.\n\n" + texte,
-        )
-        return (res.text or "").strip()
-    except Exception:
+def construire_consigne():
+    consigne = (
+        "Tu es l'assistant personnel de Baraka. "
+        "Tu l'aides dans toutes ses activites et toutes ses entreprises. "
+        + ROLES[st.session_state.get("role", "Assistant général")] + " "
+        + LANGUES[st.session_state.get("langue", "Français")] + " "
+        + TONS[st.session_state.get("ton", "Amical")] + " "
+        + LONGUEURS[st.session_state.get("longueur", "Normales")] + " "
+        "Tu ne fais jamais d'action importante sans son autorisation."
+    )
+    if memoire_actuelle:
+        consigne += "\n\nVoici ce que tu sais deja sur Baraka et ses activites :\n" + memoire_actuelle
+    return consigne
+
+
+def appeler_gemini(historique, consigne):
+    client = genai.Client(api_key=cle)
+    contenus = []
+    for m in historique:
+        role = "user" if m["role"] == "user" else "model"
+        contenus.append(types.Content(role=role, parts=[types.Part.from_text(text=m["content"])]))
+    outils = [types.Tool(google_search=types.GoogleSearch())] if st.session_state.get("recherche_web", True) else []
+    for modele in MODELES_GEMINI:
+        for essai in range(3):
+            try:
+                res = client.models.generate_content(
+                    model=modele,
+                    contents=contenus,
+                    config=types.GenerateContentConfig(
+                        system_instruction=consigne,
+                        temperature=float(st.session_state.get("creativite", 0.5)) * 1.5,
+                        tools=outils,
+                    ),
+                )
+                if res.text:
+                    return res.text
+            except Exception:
+                time.sleep(1.5 * (essai + 1))
+    return ""
+
+
+def appeler_groq(historique, consigne):
+    cle_groq = lire_secret("GROQ_API_KEY")
+    if not cle_groq:
         return ""
+    messages = [{"role": "system", "content": consigne}]
+    for m in historique:
+        messages.append({"role": "user" if m["role"] == "user" else "assistant", "content": m["content"]})
+    for essai in range(2):
+        try:
+            r = requests.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": "Bearer " + cle_groq, "Content-Type": "application/json"},
+                json={"model": MODELE_GROQ, "messages": messages, "temperature": float(st.session_state.get("creativite", 0.5)) * 1.2},
+                timeout=60,
+            )
+            if r.status_code == 200:
+                return r.json()["choices"][0]["message"]["content"]
+        except Exception:
+            pass
+        time.sleep(1.5)
+    return ""
+
+
+def repondre(historique):
+    consigne = construire_consigne()
+    texte = appeler_gemini(historique, consigne)
+    if not texte:
+        texte = appeler_groq(historique, consigne)
+    if not texte:
+        texte = "Les serveurs d'IA sont très chargés en ce moment. Réessaie dans quelques instants."
+    return texte
+
+
+def resumer_pour_memoire(texte, source):
+    demande = [{"role": "user", "content": "Resume en 8 points courts maximum les informations utiles et durables de ce texte (source : "
+               + source + "). Reponds en francais, un point par ligne, sans titre.\n\n" + texte}]
+    return repondre(demande).strip()
 
 
 def nouvelle_conversation():
-    for k in ["chat", "messages", "en_attente", "suggestion"]:
+    for k in ["messages", "en_attente", "suggestion", "a_repondre"]:
         if k in st.session_state:
             del st.session_state[k]
 
@@ -364,6 +406,10 @@ if not cle:
 
 memoire_actuelle = lire_memoire()
 
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+    st.session_state.en_attente = None
+
 with st.sidebar:
     st.markdown("### 🧠 Mon IA")
     if st.button("➕ Nouvelle conversation"):
@@ -378,14 +424,10 @@ with st.sidebar:
         st.selectbox("Langue", list(LANGUES.keys()), key="langue")
         st.slider("Créativité", 0.0, 1.0, 0.5, 0.1, key="creativite")
         st.toggle("Recherche internet", value=True, key="recherche_web")
-        st.caption("Après un changement, clique sur Nouvelle conversation.")
     with st.expander("Apparence"):
         st.selectbox("Taille du texte", list(TAILLES.keys()), index=1, key="taille")
         st.selectbox("Couleur d'accent", list(ACCENTS.keys()), key="accent")
     with st.expander("Mémoire" + (" permanente" if github_actif() else "")):
-        nb = len([l for l in memoire_actuelle.split("\n") if l.strip()])
-        st.caption(str(nb) + " information(s) retenue(s)")
-        st.write(memoire_actuelle if memoire_actuelle else "Rien pour l'instant.")
         if memoire_actuelle:
             if st.button("Effacer toute la mémoire"):
                 st.session_state.confirmer_effacement = True
@@ -395,6 +437,8 @@ with st.sidebar:
                     ecrire_memoire("")
                     st.session_state.confirmer_effacement = False
                     st.rerun()
+        else:
+            st.caption("Rien à effacer.")
     with st.expander("Conversation"):
         texte_export = ""
         for m in st.session_state.get("messages", []):
@@ -404,68 +448,16 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Colle une adresse web dans ta question pour que je la lise. Écris « retiens : ... » pour lui apprendre quelque chose. Rien n'est retenu sans ton accord.")
 
-if "chat" not in st.session_state:
-    client = genai.Client(api_key=cle)
-    consigne = (
-        "Tu es l'assistant personnel de Baraka. "
-        "Tu l'aides dans toutes ses activites et toutes ses entreprises. "
-        + ROLES[st.session_state.get("role", "Assistant général")] + " "
-        + LANGUES[st.session_state.get("langue", "Français")] + " "
-        + TONS[st.session_state.get("ton", "Amical")] + " "
-        + LONGUEURS[st.session_state.get("longueur", "Normales")] + " "
-        "Tu ne fais jamais d'action importante sans son autorisation."
-    )
-    if memoire_actuelle:
-        consigne += "\n\nVoici ce que tu sais deja sur Baraka et ses activites :\n" + memoire_actuelle
-    outils = []
-    if st.session_state.get("recherche_web", True):
-        outils = [types.Tool(google_search=types.GoogleSearch())]
-    st.session_state.chat = client.chats.create(
-        model=MODELE,
-        config=types.GenerateContentConfig(
-            system_instruction=consigne,
-            temperature=float(st.session_state.get("creativite", 0.5)) * 1.5,
-            tools=outils,
-        ),
-    )
-    st.session_state.messages = []
-    st.session_state.en_attente = None
 
-st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
-st.markdown('<p class="sous-titre">Ton assistant personnel pour toutes tes activités.</p>', unsafe_allow_html=True)
-
-if not st.session_state.messages and not st.session_state.en_attente:
-    c1, c2, c3 = st.columns(3)
-    c1.markdown('<div class="carte"><b>CRÉER</b><br><span>Idées de designs, textes, publications.</span></div>', unsafe_allow_html=True)
-    c2.markdown('<div class="carte"><b>CALCULER</b><br><span>Chiffres, budgets, devis, statistiques.</span></div>', unsafe_allow_html=True)
-    c3.markdown('<div class="carte"><b>ORGANISER</b><br><span>Projets, clients, tâches du jour.</span></div>', unsafe_allow_html=True)
-    st.markdown("")
-    st.markdown('<div class="sugg">', unsafe_allow_html=True)
-    s1, s2, s3 = st.columns(3)
-    cles_sug = list(SUGGESTIONS.keys())
-    if s1.button(cles_sug[0]):
-        st.session_state.suggestion = SUGGESTIONS[cles_sug[0]]
-        st.rerun()
-    if s2.button(cles_sug[1]):
-        st.session_state.suggestion = SUGGESTIONS[cles_sug[1]]
-        st.rerun()
-    if s3.button(cles_sug[2]):
-        st.session_state.suggestion = SUGGESTIONS[cles_sug[2]]
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-for m in st.session_state.messages:
-    with st.chat_message(m["role"], avatar="🧑‍🎨" if m["role"] == "user" else "🧠"):
-        st.write(m["content"])
+def afficher_bulle(role, texte):
+    classe = "moi" if role == "user" else "ia"
+    propre = texte.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    st.markdown('<div class="ligne ' + classe + '"><div class="bulle ' + classe + '">' + propre + '</div></div>', unsafe_allow_html=True)
 
 
 def envoyer(contenu, affichage):
-    st.session_state.messages.append({"role": "user", "content": affichage})
-    try:
-        reponse = st.session_state.chat.send_message(contenu)
-        st.session_state.messages.append({"role": "assistant", "content": reponse.text})
-    except Exception:
-        st.session_state.messages.append({"role": "assistant", "content": "Le serveur de Google est surchargé. Réessaie dans un instant."})
+    st.session_state.messages.append({"role": "user", "content": affichage, "envoi": contenu})
+    st.session_state.a_repondre = True
     st.rerun()
 
 
@@ -479,18 +471,70 @@ def traiter(message):
         return
     adresses = re.findall(r"https?://[^\s]+", message)
     contenu = message
-    if adresses:
-        for adr in adresses[:2]:
-            page = lire_page_web(adr)
-            if page:
-                contenu += "\n\nContenu de la page " + adr + " :\n" + page
+    for adr in adresses[:2]:
+        page = lire_page_web(adr)
+        if page:
+            contenu += "\n\nContenu de la page " + adr + " :\n" + page
     envoyer(contenu, message)
 
 
+colonne_chat, colonne_memoire = st.columns([3, 1.2])
+
+with colonne_chat:
+    st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sous-titre">Ton assistant personnel pour toutes tes activités.</p>', unsafe_allow_html=True)
+
+    if not st.session_state.messages and not st.session_state.en_attente:
+        c1, c2, c3 = st.columns(3)
+        c1.markdown('<div class="carte"><b>CRÉER</b><br><span>Idées de designs, textes, publications.</span></div>', unsafe_allow_html=True)
+        c2.markdown('<div class="carte"><b>CALCULER</b><br><span>Chiffres, budgets, devis, statistiques.</span></div>', unsafe_allow_html=True)
+        c3.markdown('<div class="carte"><b>ORGANISER</b><br><span>Projets, clients, tâches du jour.</span></div>', unsafe_allow_html=True)
+        st.markdown("")
+        st.markdown('<div class="sugg">', unsafe_allow_html=True)
+        s1, s2, s3 = st.columns(3)
+        cles_sug = list(SUGGESTIONS.keys())
+        if s1.button(cles_sug[0]):
+            st.session_state.suggestion = SUGGESTIONS[cles_sug[0]]
+            st.rerun()
+        if s2.button(cles_sug[1]):
+            st.session_state.suggestion = SUGGESTIONS[cles_sug[1]]
+            st.rerun()
+        if s3.button(cles_sug[2]):
+            st.session_state.suggestion = SUGGESTIONS[cles_sug[2]]
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    for m in st.session_state.messages:
+        afficher_bulle(m["role"], m["content"])
+
+    if st.session_state.get("a_repondre"):
+        place = st.empty()
+        place.markdown('<div class="ligne ia"><div class="bulle ia"><div class="points"><span></span><span></span><span></span></div></div></div>', unsafe_allow_html=True)
+        historique = []
+        for m in st.session_state.messages:
+            historique.append({"role": m["role"], "content": m.get("envoi", m["content"])})
+        texte = repondre(historique)
+        place.empty()
+        st.session_state.messages.append({"role": "assistant", "content": texte})
+        st.session_state.a_repondre = False
+        st.rerun()
+
+with colonne_memoire:
+    st.markdown('<div class="panneau"><h4>🧠 MÉMOIRE RÉCENTE</h4>', unsafe_allow_html=True)
+    lignes = [l for l in memoire_actuelle.split("\n") if l.strip()]
+    if lignes:
+        for l in lignes[-8:][::-1]:
+            propre = l.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            st.markdown('<div class="souvenir">' + propre[:220] + '</div>', unsafe_allow_html=True)
+        st.caption(str(len(lignes)) + " information(s) au total")
+    else:
+        st.caption("Rien pour l'instant. Écris « retiens : ... ».")
+    st.markdown('</div>', unsafe_allow_html=True)
+
 if st.session_state.get("suggestion"):
-    texte = st.session_state.suggestion
+    texte_s = st.session_state.suggestion
     st.session_state.suggestion = None
-    traiter(texte)
+    traiter(texte_s)
 
 if st.session_state.en_attente:
     info = st.session_state.en_attente
@@ -543,7 +587,7 @@ else:
                 try:
                     client_voix = genai.Client(api_key=cle)
                     resultat = client_voix.models.generate_content(
-                        model=MODELE,
+                        model=MODELES_GEMINI[0],
                         contents=[
                             "Transcris fidèlement cet audio, sans rien ajouter.",
                             types.Part.from_bytes(data=audio.getvalue(), mime_type="audio/wav"),
