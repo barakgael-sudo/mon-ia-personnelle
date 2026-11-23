@@ -26,108 +26,111 @@ CSS = """
 <style>
 :root { color-scheme: dark; }
 .stApp {
-    background-color: #08080a;
+    background-color: #0c0c0f;
     background-image:
-        conic-gradient(from 210deg at 100% 0%, rgba(120,120,135,0.22) 0deg, transparent 60deg),
-        conic-gradient(from 30deg at 0% 100%, rgba(120,120,135,0.18) 0deg, transparent 55deg),
-        radial-gradient(circle at 92% 18%, rgba(110,110,125,0.20) 0%, transparent 22%),
-        radial-gradient(circle at 8% 82%, rgba(110,110,125,0.16) 0%, transparent 24%);
+        conic-gradient(from 210deg at 100% 0%, rgba(120,120,135,0.16) 0deg, transparent 60deg),
+        conic-gradient(from 30deg at 0% 100%, rgba(120,120,135,0.12) 0deg, transparent 55deg);
     background-attachment: fixed;
 }
 .stApp, .stApp p, .stApp span, .stApp label, .stApp li, .stApp div,
 .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stMarkdown {
-    color: #e8e8ec !important;
+    color: #e6e6ea !important;
     font-size: __TAILLE__;
 }
-.stCaption, [data-testid="stCaptionContainer"], .stApp small { color: #a3a3ae !important; }
+.stCaption, [data-testid="stCaptionContainer"], .stApp small { color: #9a9aa6 !important; }
 header[data-testid="stHeader"] { background: transparent; }
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #17171c 0%, #0e0e12 100%);
-    border-right: 1px solid #2a2a32;
+    background: #131317;
+    border-right: 1px solid #26262d;
 }
 .block-container { padding-bottom: 13rem !important; max-width: 1250px; }
 .titre {
-    font-size: 2.2rem;
-    font-weight: 800;
-    letter-spacing: -0.5px;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.4px;
     color: #f2f2f5 !important;
     margin-bottom: 0;
     border-left: 4px solid __ACCENT__;
     padding-left: 14px;
 }
-.sous-titre { color: #a3a3ae !important; margin: 4px 0 1.2rem 18px; }
+.sous-titre { color: #9a9aa6 !important; margin: 4px 0 1.2rem 18px; }
 .carte {
-    background: linear-gradient(145deg, #2a2a32, #1b1b21);
-    border: 1px solid #3a3a44;
+    background: #1a1a1f;
+    border: 1px solid #2c2c34;
     border-top: 2px solid __ACCENT__;
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 18px;
-    min-height: 110px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    min-height: 105px;
 }
-.carte b { color: #f2f2f5 !important; font-size: 1.05rem; letter-spacing: 0.3px; }
-.carte span { color: #b4b4be !important; }
-.ligne { display: flex; margin: 8px 0; width: 100%; }
+.carte b { color: #f2f2f5 !important; font-size: 1.02rem; letter-spacing: 0.3px; }
+.carte span { color: #a8a8b3 !important; }
+.ligne { display: flex; margin: 10px 0; width: 100%; }
 .ligne.moi { justify-content: flex-end; }
 .ligne.ia { justify-content: flex-start; }
 .bulle {
-    max-width: 78%;
+    max-width: 80%;
     padding: 12px 16px;
     border-radius: 14px;
-    line-height: 1.55;
+    line-height: 1.6;
     white-space: pre-wrap;
     word-wrap: break-word;
 }
 .bulle.moi {
-    background: linear-gradient(135deg, #f87171 0%, #b91c1c 55%, #7f1d1d 100%);
-    border: 1px solid rgba(255,255,255,0.18);
+    background: #34343c;
+    border: 1px solid #44444e;
     border-bottom-right-radius: 4px;
 }
-.bulle.moi, .bulle.moi * { color: #ffffff !important; }
 .bulle.ia {
-    background: linear-gradient(145deg, #2a2a32, #1c1c22);
-    border: 1px solid #3a3a44;
+    background: #1d1d23;
+    border: 1px solid #2c2c34;
     border-bottom-left-radius: 4px;
 }
 .points { display: inline-flex; gap: 5px; padding: 4px 2px; }
 .points span {
     width: 8px; height: 8px; border-radius: 50%;
-    background: #f87171;
+    background: #9a9aa6;
     animation: saut 1.2s infinite ease-in-out;
 }
 .points span:nth-child(2) { animation-delay: 0.2s; }
 .points span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes saut { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
 .panneau {
-    background: linear-gradient(160deg, #1d1d23, #131318);
-    border: 1px solid #2f2f38;
+    background: #16161b;
+    border: 1px solid #2a2a31;
     border-radius: 8px;
     padding: 14px;
 }
-.panneau h4 { margin: 0 0 8px 0; color: #f2f2f5 !important; font-size: 0.95rem; letter-spacing: 0.4px; }
+.panneau h4 { margin: 0 0 8px 0; color: #f2f2f5 !important; font-size: 0.9rem; letter-spacing: 0.5px; }
 .souvenir {
-    background: #202027;
-    border: 1px solid #34343d;
+    background: #1d1d23;
+    border: 1px solid #2c2c34;
     border-left: 3px solid __ACCENT__;
     border-radius: 4px;
     padding: 8px 10px;
     margin: 6px 0;
-    font-size: 0.86rem;
+    font-size: 0.85rem;
     line-height: 1.4;
+}
+.recent {
+    background: #1a1a1f;
+    border: 1px solid #2c2c34;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 5px 0;
+    font-size: 0.85rem;
 }
 [data-testid="stBottom"] { background: transparent !important; padding-bottom: 64px !important; }
 [data-testid="stBottom"] > div { background: transparent !important; }
 [data-testid="stChatInput"] {
-    background: #1b1b21 !important;
-    border: 1px solid #44444f !important;
-    border-radius: 10px !important;
-    min-height: 110px !important;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.6) !important;
+    background: #1a1a1f !important;
+    border: 1px solid #3a3a43 !important;
+    border-radius: 12px !important;
+    min-height: 100px !important;
 }
 [data-testid="stChatInput"] > div, [data-testid="stChatInputContainer"] {
     background: transparent !important;
     border: none !important;
-    min-height: 100px !important;
+    min-height: 90px !important;
 }
 [data-testid="stChatInput"] textarea, [data-testid="stChatInputTextArea"] {
     color: #ffffff !important;
@@ -135,55 +138,53 @@ section[data-testid="stSidebar"] {
     caret-color: __ACCENT__ !important;
     background-color: transparent !important;
     opacity: 1 !important;
-    min-height: 90px !important;
-    font-size: 1.05rem !important;
+    min-height: 80px !important;
+    font-size: 1.02rem !important;
 }
 [data-testid="stChatInput"] textarea::placeholder {
-    color: #8e8e9a !important;
-    -webkit-text-fill-color: #8e8e9a !important;
+    color: #8a8a96 !important;
+    -webkit-text-fill-color: #8a8a96 !important;
     opacity: 1 !important;
 }
-[data-testid="stChatInput"] button { background: linear-gradient(135deg, #f87171, #991b1b) !important; border-radius: 6px !important; }
+[data-testid="stChatInput"] button { background: #44444e !important; border-radius: 8px !important; }
 [data-testid="stChatInput"] button svg { fill: #ffffff !important; color: #ffffff !important; }
 .stTextInput input, .stTextArea textarea {
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
-    background: #1b1b21 !important;
+    background: #1a1a1f !important;
     border-radius: 6px !important;
 }
 .stButton > button, .stDownloadButton > button {
     border-radius: 6px;
-    border: 1px solid #3f3f4a;
-    background: #202027;
-    color: #f0f0f3 !important;
+    border: 1px solid #36363f;
+    background: #1d1d23;
+    color: #eeeef1 !important;
     width: 100%;
     font-weight: 600;
 }
-.stButton > button:hover, .stDownloadButton > button:hover { border-color: #f87171; color: #ffffff !important; background: #2a2a33; }
-.stButton > button p, .stDownloadButton > button p { color: #f0f0f3 !important; }
+.stButton > button:hover, .stDownloadButton > button:hover { border-color: #6a6a76; color: #ffffff !important; background: #26262d; }
+.stButton > button p, .stDownloadButton > button p { color: #eeeef1 !important; }
 .sugg .stButton > button {
     background: linear-gradient(135deg, #fca5a5 0%, #dc2626 50%, #7f1d1d 100%);
     border: 1px solid rgba(255,255,255,0.2);
 }
 .sugg .stButton > button p { color: #ffffff !important; }
-.sugg .stButton > button:hover { box-shadow: 0 0 18px rgba(248,113,113,0.5); }
 .icones .stButton > button, .icones [data-testid="stPopover"] > div > button {
-    width: 38px !important; min-width: 38px !important; height: 34px !important;
-    padding: 0 !important; font-size: 1rem !important; border-radius: 6px !important;
-    background: #1b1b21 !important; border: 1px solid #3f3f4a !important;
+    width: 36px !important; min-width: 36px !important; height: 32px !important;
+    padding: 0 !important; font-size: 0.95rem !important; border-radius: 6px !important;
+    background: #1a1a1f !important; border: 1px solid #36363f !important;
 }
-div[data-baseweb="select"] > div { background: #1b1b21 !important; border: 1px solid #3f3f4a !important; border-radius: 6px !important; }
-div[data-baseweb="select"] * { color: #f0f0f3 !important; }
-[data-testid="stExpander"], [data-testid="stPopover"] { background: #17171c; border: 1px solid #2f2f38; border-radius: 6px; }
-[data-testid="stAlert"] { background: #1d1a1c !important; border: 1px solid #dc2626; border-radius: 6px; }
-[data-testid="stFileUploader"] section { background: #17171c; border: 1px dashed #3f3f4a; border-radius: 6px; }
-hr { border-color: #2a2a32 !important; }
+div[data-baseweb="select"] > div { background: #1a1a1f !important; border: 1px solid #36363f !important; border-radius: 6px !important; }
+div[data-baseweb="select"] * { color: #eeeef1 !important; }
+[data-testid="stExpander"], [data-testid="stPopover"] { background: #16161b; border: 1px solid #2a2a31; border-radius: 6px; }
+[data-testid="stAlert"] { background: #1d1a1c !important; border: 1px solid #6a6a76; border-radius: 6px; }
+[data-testid="stFileUploader"] section { background: #16161b; border: 1px dashed #3a3a43; border-radius: 6px; }
+hr { border-color: #26262d !important; }
 @media (max-width: 900px) {
-    .titre { font-size: 1.6rem; }
+    .titre { font-size: 1.5rem; }
     .carte { min-height: 80px; padding: 12px; }
     .bulle { max-width: 92%; }
     .block-container { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
-    [data-testid="stChatInput"] { min-height: 90px !important; }
 }
 </style>
 """
@@ -320,35 +321,39 @@ def construire_consigne():
     return consigne
 
 
-def appeler_gemini(historique, consigne):
+def appeler_gemini(historique, consigne, erreurs):
     client = genai.Client(api_key=cle)
     contenus = []
     for m in historique:
         role = "user" if m["role"] == "user" else "model"
         contenus.append(types.Content(role=role, parts=[types.Part.from_text(text=m["content"])]))
-    outils = [types.Tool(google_search=types.GoogleSearch())] if st.session_state.get("recherche_web", True) else []
+    avec_recherche = st.session_state.get("recherche_web", True)
     for modele in MODELES_GEMINI:
         for essai in range(3):
-            try:
-                res = client.models.generate_content(
-                    model=modele,
-                    contents=contenus,
-                    config=types.GenerateContentConfig(
-                        system_instruction=consigne,
-                        temperature=float(st.session_state.get("creativite", 0.5)) * 1.5,
-                        tools=outils,
-                    ),
-                )
-                if res.text:
-                    return res.text
-            except Exception:
-                time.sleep(1.5 * (essai + 1))
+            for recherche in ([True, False] if avec_recherche else [False]):
+                try:
+                    outils = [types.Tool(google_search=types.GoogleSearch())] if recherche else None
+                    res = client.models.generate_content(
+                        model=modele,
+                        contents=contenus,
+                        config=types.GenerateContentConfig(
+                            system_instruction=consigne,
+                            temperature=float(st.session_state.get("creativite", 0.5)) * 1.5,
+                            tools=outils,
+                        ),
+                    )
+                    if res.text:
+                        return res.text
+                except Exception as e:
+                    erreurs.append("Gemini " + modele + " : " + str(e)[:160])
+            time.sleep(1.5 * (essai + 1))
     return ""
 
 
-def appeler_groq(historique, consigne):
+def appeler_groq(historique, consigne, erreurs):
     cle_groq = lire_secret("GROQ_API_KEY")
     if not cle_groq:
+        erreurs.append("Groq : la clé GROQ_API_KEY est absente des Secrets.")
         return ""
     messages = [{"role": "system", "content": consigne}]
     for m in historique:
@@ -363,19 +368,22 @@ def appeler_groq(historique, consigne):
             )
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"]
-        except Exception:
-            pass
+            erreurs.append("Groq code " + str(r.status_code) + " : " + r.text[:160])
+        except Exception as e:
+            erreurs.append("Groq : " + str(e)[:160])
         time.sleep(1.5)
     return ""
 
 
 def repondre(historique):
     consigne = construire_consigne()
-    texte = appeler_gemini(historique, consigne)
+    erreurs = []
+    texte = appeler_gemini(historique, consigne, erreurs)
     if not texte:
-        texte = appeler_groq(historique, consigne)
+        texte = appeler_groq(historique, consigne, erreurs)
     if not texte:
-        texte = "Les serveurs d'IA sont très chargés en ce moment. Réessaie dans quelques instants."
+        detail = "\n".join(erreurs[-4:]) if erreurs else "Aucun détail."
+        texte = "Je n'ai pas réussi à joindre l'IA. Voici ce que disent les connexions :\n" + detail
     return texte
 
 
@@ -385,10 +393,34 @@ def resumer_pour_memoire(texte, source):
     return repondre(demande).strip()
 
 
+def titre_conversation(messages):
+    for m in messages:
+        if m["role"] == "user":
+            return m["content"][:34]
+    return "Conversation"
+
+
+def archiver_conversation():
+    msgs = st.session_state.get("messages", [])
+    if msgs:
+        archives = st.session_state.get("archives", [])
+        archives.insert(0, {"titre": titre_conversation(msgs), "messages": msgs})
+        st.session_state.archives = archives[:12]
+
+
 def nouvelle_conversation():
+    archiver_conversation()
     for k in ["messages", "en_attente", "suggestion", "a_repondre"]:
         if k in st.session_state:
             del st.session_state[k]
+
+
+def ouvrir_archive(index):
+    archiver_conversation()
+    choisie = st.session_state.archives.pop(index) if index < len(st.session_state.archives) else None
+    if choisie:
+        st.session_state.messages = choisie["messages"]
+        st.session_state.en_attente = None
 
 
 cle = lire_fichier(FICHIER_CLE)
@@ -415,9 +447,18 @@ with st.sidebar:
     if st.button("➕ Nouvelle conversation"):
         nouvelle_conversation()
         st.rerun()
+    st.markdown("**Conversations récentes**")
+    archives = st.session_state.get("archives", [])
+    if archives:
+        for i, a in enumerate(archives):
+            if st.button("💬 " + a["titre"], key="arch_" + str(i)):
+                ouvrir_archive(i)
+                st.rerun()
+    else:
+        st.caption("Aucune pour l'instant.")
     st.markdown("---")
     st.markdown("**⚙️ Paramètres**")
-    with st.expander("Intelligence", expanded=True):
+    with st.expander("Intelligence"):
         st.selectbox("Rôle", list(ROLES.keys()), key="role")
         st.selectbox("Ton", list(TONS.keys()), key="ton")
         st.selectbox("Longueur des réponses", list(LONGUEURS.keys()), index=1, key="longueur")
@@ -478,7 +519,7 @@ def traiter(message):
     envoyer(contenu, message)
 
 
-colonne_chat, colonne_memoire = st.columns([3, 1.2])
+colonne_chat, colonne_memoire = st.columns([3, 1.1])
 
 with colonne_chat:
     st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
@@ -520,7 +561,7 @@ with colonne_chat:
         st.rerun()
 
 with colonne_memoire:
-    st.markdown('<div class="panneau"><h4>🧠 MÉMOIRE RÉCENTE</h4>', unsafe_allow_html=True)
+    st.markdown('<div class="panneau"><h4>MÉMOIRE RÉCENTE</h4>', unsafe_allow_html=True)
     lignes = [l for l in memoire_actuelle.split("\n") if l.strip()]
     if lignes:
         for l in lignes[-8:][::-1]:
