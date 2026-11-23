@@ -11,8 +11,8 @@ from google.genai import types
 
 FICHIER_CLE = "cle.txt"
 FICHIER_MEMOIRE = "memoire.txt"
-MODELES_GEMINI = ["gemini-2.5-flash-lite", "gemini-2.5-flash"]
-MODELE_GROQ = "llama-3.3-70b-versatile"
+MODELES_GEMINI = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
+MODELES_GROQ = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
 
 st.set_page_config(page_title="Mon IA personnelle", page_icon="🧠", layout="wide")
 
@@ -39,28 +39,17 @@ CSS = """
 }
 .stCaption, [data-testid="stCaptionContainer"], .stApp small { color: #9a9aa6 !important; }
 header[data-testid="stHeader"] { background: transparent; }
-section[data-testid="stSidebar"] {
-    background: #131317;
-    border-right: 1px solid #26262d;
-}
-.block-container { padding-bottom: 13rem !important; max-width: 1250px; }
+section[data-testid="stSidebar"] { background: #131317; border-right: 1px solid #26262d; }
+.block-container { padding-bottom: 15rem !important; max-width: 900px; }
 .titre {
-    font-size: 2rem;
-    font-weight: 700;
-    letter-spacing: -0.4px;
-    color: #f2f2f5 !important;
-    margin-bottom: 0;
-    border-left: 4px solid __ACCENT__;
-    padding-left: 14px;
+    font-size: 2rem; font-weight: 700; letter-spacing: -0.4px;
+    color: #f2f2f5 !important; margin-bottom: 0;
+    border-left: 4px solid __ACCENT__; padding-left: 14px;
 }
 .sous-titre { color: #9a9aa6 !important; margin: 4px 0 1.2rem 18px; }
 .carte {
-    background: #1a1a1f;
-    border: 1px solid #2c2c34;
-    border-top: 2px solid __ACCENT__;
-    border-radius: 8px;
-    padding: 18px;
-    min-height: 105px;
+    background: #1a1a1f; border: 1px solid #2c2c34; border-top: 2px solid __ACCENT__;
+    border-radius: 8px; padding: 18px; min-height: 105px;
 }
 .carte b { color: #f2f2f5 !important; font-size: 1.02rem; letter-spacing: 0.3px; }
 .carte span { color: #a8a8b3 !important; }
@@ -68,99 +57,49 @@ section[data-testid="stSidebar"] {
 .ligne.moi { justify-content: flex-end; }
 .ligne.ia { justify-content: flex-start; }
 .bulle {
-    max-width: 80%;
-    padding: 12px 16px;
-    border-radius: 14px;
-    line-height: 1.6;
-    white-space: pre-wrap;
-    word-wrap: break-word;
+    max-width: 62%; padding: 10px 14px; border-radius: 14px;
+    line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; font-size: 0.97rem;
 }
-.bulle.moi {
-    background: #34343c;
-    border: 1px solid #44444e;
-    border-bottom-right-radius: 4px;
-}
-.bulle.ia {
-    background: #1d1d23;
-    border: 1px solid #2c2c34;
-    border-bottom-left-radius: 4px;
-}
+.bulle.moi { background: #34343c; border: 1px solid #44444e; border-bottom-right-radius: 4px; }
+.bulle.ia { background: #1d1d23; border: 1px solid #2c2c34; border-bottom-left-radius: 4px; }
 .points { display: inline-flex; gap: 5px; padding: 4px 2px; }
 .points span {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #9a9aa6;
+    width: 8px; height: 8px; border-radius: 50%; background: #9a9aa6;
     animation: saut 1.2s infinite ease-in-out;
 }
 .points span:nth-child(2) { animation-delay: 0.2s; }
 .points span:nth-child(3) { animation-delay: 0.4s; }
 @keyframes saut { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
-.panneau {
-    background: #16161b;
-    border: 1px solid #2a2a31;
-    border-radius: 8px;
-    padding: 14px;
-}
-.panneau h4 { margin: 0 0 8px 0; color: #f2f2f5 !important; font-size: 0.9rem; letter-spacing: 0.5px; }
 .souvenir {
-    background: #1d1d23;
-    border: 1px solid #2c2c34;
-    border-left: 3px solid __ACCENT__;
-    border-radius: 4px;
-    padding: 8px 10px;
-    margin: 6px 0;
-    font-size: 0.85rem;
-    line-height: 1.4;
+    background: #1d1d23; border: 1px solid #2c2c34; border-left: 3px solid __ACCENT__;
+    border-radius: 4px; padding: 7px 9px; margin: 5px 0; font-size: 0.82rem; line-height: 1.4;
 }
-.recent {
-    background: #1a1a1f;
-    border: 1px solid #2c2c34;
-    border-radius: 6px;
-    padding: 8px 10px;
-    margin: 5px 0;
-    font-size: 0.85rem;
-}
-[data-testid="stBottom"] { background: transparent !important; padding-bottom: 64px !important; }
+[data-testid="stBottom"] { background: transparent !important; padding-bottom: 12px !important; }
 [data-testid="stBottom"] > div { background: transparent !important; }
 [data-testid="stChatInput"] {
-    background: #1a1a1f !important;
-    border: 1px solid #3a3a43 !important;
-    border-radius: 12px !important;
-    min-height: 100px !important;
+    background: #1a1a1f !important; border: 1px solid #3a3a43 !important;
+    border-radius: 12px !important; min-height: 96px !important;
 }
 [data-testid="stChatInput"] > div, [data-testid="stChatInputContainer"] {
-    background: transparent !important;
-    border: none !important;
-    min-height: 90px !important;
+    background: transparent !important; border: none !important; min-height: 86px !important;
 }
 [data-testid="stChatInput"] textarea, [data-testid="stChatInputTextArea"] {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    caret-color: __ACCENT__ !important;
-    background-color: transparent !important;
-    opacity: 1 !important;
-    min-height: 80px !important;
-    font-size: 1.02rem !important;
+    color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+    caret-color: __ACCENT__ !important; background-color: transparent !important;
+    opacity: 1 !important; min-height: 76px !important; font-size: 1.02rem !important;
 }
 [data-testid="stChatInput"] textarea::placeholder {
-    color: #8a8a96 !important;
-    -webkit-text-fill-color: #8a8a96 !important;
-    opacity: 1 !important;
+    color: #8a8a96 !important; -webkit-text-fill-color: #8a8a96 !important; opacity: 1 !important;
 }
 [data-testid="stChatInput"] button { background: #44444e !important; border-radius: 8px !important; }
 [data-testid="stChatInput"] button svg { fill: #ffffff !important; color: #ffffff !important; }
 .stTextInput input, .stTextArea textarea {
-    color: #ffffff !important;
-    -webkit-text-fill-color: #ffffff !important;
-    background: #1a1a1f !important;
-    border-radius: 6px !important;
+    color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
+    background: #1a1a1f !important; border-radius: 6px !important;
 }
 .stButton > button, .stDownloadButton > button {
-    border-radius: 6px;
-    border: 1px solid #36363f;
-    background: #1d1d23;
-    color: #eeeef1 !important;
-    width: 100%;
-    font-weight: 600;
+    border-radius: 6px; border: 1px solid #36363f; background: #1d1d23;
+    color: #eeeef1 !important; width: 100%; font-weight: 600;
 }
 .stButton > button:hover, .stDownloadButton > button:hover { border-color: #6a6a76; color: #ffffff !important; background: #26262d; }
 .stButton > button p, .stDownloadButton > button p { color: #eeeef1 !important; }
@@ -169,7 +108,8 @@ section[data-testid="stSidebar"] {
     border: 1px solid rgba(255,255,255,0.2);
 }
 .sugg .stButton > button p { color: #ffffff !important; }
-.icones .stButton > button, .icones [data-testid="stPopover"] > div > button {
+[data-testid="stBottom"] .stButton > button,
+[data-testid="stBottom"] [data-testid="stPopover"] > div > button {
     width: 36px !important; min-width: 36px !important; height: 32px !important;
     padding: 0 !important; font-size: 0.95rem !important; border-radius: 6px !important;
     background: #1a1a1f !important; border: 1px solid #36363f !important;
@@ -183,7 +123,7 @@ hr { border-color: #26262d !important; }
 @media (max-width: 900px) {
     .titre { font-size: 1.5rem; }
     .carte { min-height: 80px; padding: 12px; }
-    .bulle { max-width: 92%; }
+    .bulle { max-width: 88%; }
     .block-container { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
 }
 </style>
@@ -329,7 +269,7 @@ def appeler_gemini(historique, consigne, erreurs):
         contenus.append(types.Content(role=role, parts=[types.Part.from_text(text=m["content"])]))
     avec_recherche = st.session_state.get("recherche_web", True)
     for modele in MODELES_GEMINI:
-        for essai in range(3):
+        for essai in range(2):
             for recherche in ([True, False] if avec_recherche else [False]):
                 try:
                     outils = [types.Tool(google_search=types.GoogleSearch())] if recherche else None
@@ -345,8 +285,8 @@ def appeler_gemini(historique, consigne, erreurs):
                     if res.text:
                         return res.text
                 except Exception as e:
-                    erreurs.append("Gemini " + modele + " : " + str(e)[:160])
-            time.sleep(1.5 * (essai + 1))
+                    erreurs.append("Gemini " + modele + " : " + str(e)[:140])
+            time.sleep(1.2 * (essai + 1))
     return ""
 
 
@@ -358,20 +298,19 @@ def appeler_groq(historique, consigne, erreurs):
     messages = [{"role": "system", "content": consigne}]
     for m in historique:
         messages.append({"role": "user" if m["role"] == "user" else "assistant", "content": m["content"]})
-    for essai in range(2):
+    for modele in MODELES_GROQ:
         try:
             r = requests.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": "Bearer " + cle_groq, "Content-Type": "application/json"},
-                json={"model": MODELE_GROQ, "messages": messages, "temperature": float(st.session_state.get("creativite", 0.5)) * 1.2},
+                json={"model": modele, "messages": messages, "temperature": float(st.session_state.get("creativite", 0.5)) * 1.2},
                 timeout=60,
             )
             if r.status_code == 200:
                 return r.json()["choices"][0]["message"]["content"]
-            erreurs.append("Groq code " + str(r.status_code) + " : " + r.text[:160])
+            erreurs.append("Groq " + modele + " code " + str(r.status_code) + " : " + r.text[:140])
         except Exception as e:
-            erreurs.append("Groq : " + str(e)[:160])
-        time.sleep(1.5)
+            erreurs.append("Groq " + modele + " : " + str(e)[:140])
     return ""
 
 
@@ -396,7 +335,7 @@ def resumer_pour_memoire(texte, source):
 def titre_conversation(messages):
     for m in messages:
         if m["role"] == "user":
-            return m["content"][:34]
+            return m["content"][:30]
     return "Conversation"
 
 
@@ -417,8 +356,9 @@ def nouvelle_conversation():
 
 def ouvrir_archive(index):
     archiver_conversation()
-    choisie = st.session_state.archives.pop(index) if index < len(st.session_state.archives) else None
-    if choisie:
+    archives = st.session_state.get("archives", [])
+    if index < len(archives):
+        choisie = archives.pop(index)
         st.session_state.messages = choisie["messages"]
         st.session_state.en_attente = None
 
@@ -456,6 +396,16 @@ with st.sidebar:
                 st.rerun()
     else:
         st.caption("Aucune pour l'instant.")
+    st.markdown("---")
+    st.markdown("**Mémoire récente**")
+    lignes_mem = [l for l in memoire_actuelle.split("\n") if l.strip()]
+    if lignes_mem:
+        for l in lignes_mem[-5:][::-1]:
+            propre = l.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            st.markdown('<div class="souvenir">' + propre[:160] + '</div>', unsafe_allow_html=True)
+        st.caption(str(len(lignes_mem)) + " information(s) au total")
+    else:
+        st.caption("Rien pour l'instant.")
     st.markdown("---")
     st.markdown("**⚙️ Paramètres**")
     with st.expander("Intelligence"):
@@ -519,58 +469,43 @@ def traiter(message):
     envoyer(contenu, message)
 
 
-colonne_chat, colonne_memoire = st.columns([3, 1.1])
+st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
+st.markdown('<p class="sous-titre">Ton assistant personnel pour toutes tes activités.</p>', unsafe_allow_html=True)
 
-with colonne_chat:
-    st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sous-titre">Ton assistant personnel pour toutes tes activités.</p>', unsafe_allow_html=True)
-
-    if not st.session_state.messages and not st.session_state.en_attente:
-        c1, c2, c3 = st.columns(3)
-        c1.markdown('<div class="carte"><b>CRÉER</b><br><span>Idées de designs, textes, publications.</span></div>', unsafe_allow_html=True)
-        c2.markdown('<div class="carte"><b>CALCULER</b><br><span>Chiffres, budgets, devis, statistiques.</span></div>', unsafe_allow_html=True)
-        c3.markdown('<div class="carte"><b>ORGANISER</b><br><span>Projets, clients, tâches du jour.</span></div>', unsafe_allow_html=True)
-        st.markdown("")
-        st.markdown('<div class="sugg">', unsafe_allow_html=True)
-        s1, s2, s3 = st.columns(3)
-        cles_sug = list(SUGGESTIONS.keys())
-        if s1.button(cles_sug[0]):
-            st.session_state.suggestion = SUGGESTIONS[cles_sug[0]]
-            st.rerun()
-        if s2.button(cles_sug[1]):
-            st.session_state.suggestion = SUGGESTIONS[cles_sug[1]]
-            st.rerun()
-        if s3.button(cles_sug[2]):
-            st.session_state.suggestion = SUGGESTIONS[cles_sug[2]]
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    for m in st.session_state.messages:
-        afficher_bulle(m["role"], m["content"])
-
-    if st.session_state.get("a_repondre"):
-        place = st.empty()
-        place.markdown('<div class="ligne ia"><div class="bulle ia"><div class="points"><span></span><span></span><span></span></div></div></div>', unsafe_allow_html=True)
-        historique = []
-        for m in st.session_state.messages:
-            historique.append({"role": m["role"], "content": m.get("envoi", m["content"])})
-        texte = repondre(historique)
-        place.empty()
-        st.session_state.messages.append({"role": "assistant", "content": texte})
-        st.session_state.a_repondre = False
+if not st.session_state.messages and not st.session_state.en_attente:
+    c1, c2, c3 = st.columns(3)
+    c1.markdown('<div class="carte"><b>CRÉER</b><br><span>Idées de designs, textes, publications.</span></div>', unsafe_allow_html=True)
+    c2.markdown('<div class="carte"><b>CALCULER</b><br><span>Chiffres, budgets, devis, statistiques.</span></div>', unsafe_allow_html=True)
+    c3.markdown('<div class="carte"><b>ORGANISER</b><br><span>Projets, clients, tâches du jour.</span></div>', unsafe_allow_html=True)
+    st.markdown("")
+    st.markdown('<div class="sugg">', unsafe_allow_html=True)
+    s1, s2, s3 = st.columns(3)
+    cles_sug = list(SUGGESTIONS.keys())
+    if s1.button(cles_sug[0]):
+        st.session_state.suggestion = SUGGESTIONS[cles_sug[0]]
         st.rerun()
-
-with colonne_memoire:
-    st.markdown('<div class="panneau"><h4>MÉMOIRE RÉCENTE</h4>', unsafe_allow_html=True)
-    lignes = [l for l in memoire_actuelle.split("\n") if l.strip()]
-    if lignes:
-        for l in lignes[-8:][::-1]:
-            propre = l.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            st.markdown('<div class="souvenir">' + propre[:220] + '</div>', unsafe_allow_html=True)
-        st.caption(str(len(lignes)) + " information(s) au total")
-    else:
-        st.caption("Rien pour l'instant. Écris « retiens : ... ».")
+    if s2.button(cles_sug[1]):
+        st.session_state.suggestion = SUGGESTIONS[cles_sug[1]]
+        st.rerun()
+    if s3.button(cles_sug[2]):
+        st.session_state.suggestion = SUGGESTIONS[cles_sug[2]]
+        st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
+for m in st.session_state.messages:
+    afficher_bulle(m["role"], m["content"])
+
+if st.session_state.get("a_repondre"):
+    place = st.empty()
+    place.markdown('<div class="ligne ia"><div class="bulle ia"><div class="points"><span></span><span></span><span></span></div></div></div>', unsafe_allow_html=True)
+    historique = []
+    for m in st.session_state.messages:
+        historique.append({"role": m["role"], "content": m.get("envoi", m["content"])})
+    texte = repondre(historique)
+    place.empty()
+    st.session_state.messages.append({"role": "assistant", "content": texte})
+    st.session_state.a_repondre = False
+    st.rerun()
 
 if st.session_state.get("suggestion"):
     texte_s = st.session_state.suggestion
@@ -598,53 +533,52 @@ else:
     if message:
         traiter(message)
 
-    st.markdown('<div class="icones">', unsafe_allow_html=True)
-    i1, i2, i3, _vide = st.columns([1, 1, 1, 9])
-    with i1:
-        with st.popover("📎"):
-            st.caption("Joindre un fichier ou un livre (texte, PDF)")
-            fichier = st.file_uploader("Fichier", type=["txt", "md", "csv", "py", "json", "pdf"], label_visibility="collapsed")
-            question_fichier = st.text_input("Que veux-tu faire avec ?", key="question_fichier")
-            c_a, c_b = st.columns(2)
-            if fichier is not None and c_a.button("Envoyer"):
-                contenu_fichier = lire_fichier_envoye(fichier)
-                if contenu_fichier:
-                    demande = (question_fichier or "Résume ce fichier.") + "\n\nContenu de " + fichier.name + " :\n" + contenu_fichier
-                    envoyer(demande, "📎 " + fichier.name + " : " + (question_fichier or "Résume ce fichier."))
-                else:
-                    st.warning("Impossible de lire ce fichier.")
-            if fichier is not None and c_b.button("Apprendre"):
-                contenu_fichier = lire_fichier_envoye(fichier)
-                resume = resumer_pour_memoire(contenu_fichier, fichier.name) if contenu_fichier else ""
-                if resume:
-                    st.session_state.en_attente = resume
+    with st.container():
+        i1, i2, i3, _vide = st.columns([1, 1, 1, 12])
+        with i1:
+            with st.popover("📎"):
+                st.caption("Joindre un fichier ou un livre (texte, PDF)")
+                fichier = st.file_uploader("Fichier", type=["txt", "md", "csv", "py", "json", "pdf"], label_visibility="collapsed")
+                question_fichier = st.text_input("Que veux-tu faire avec ?", key="question_fichier")
+                c_a, c_b = st.columns(2)
+                if fichier is not None and c_a.button("Envoyer"):
+                    contenu_fichier = lire_fichier_envoye(fichier)
+                    if contenu_fichier:
+                        demande = (question_fichier or "Résume ce fichier.") + "\n\nContenu de " + fichier.name + " :\n" + contenu_fichier
+                        envoyer(demande, "📎 " + fichier.name + " : " + (question_fichier or "Résume ce fichier."))
+                    else:
+                        st.warning("Impossible de lire ce fichier.")
+                if fichier is not None and c_b.button("Apprendre"):
+                    contenu_fichier = lire_fichier_envoye(fichier)
+                    resume = resumer_pour_memoire(contenu_fichier, fichier.name) if contenu_fichier else ""
+                    if resume:
+                        st.session_state.en_attente = resume
+                        st.rerun()
+                    else:
+                        st.warning("Impossible de résumer ce fichier.")
+        with i2:
+            with st.popover("🎤"):
+                audio = st.audio_input("Appuie, parle, puis arrête")
+                if audio is not None and st.button("Envoyer ma voix"):
+                    try:
+                        client_voix = genai.Client(api_key=cle)
+                        resultat = client_voix.models.generate_content(
+                            model=MODELES_GEMINI[0],
+                            contents=[
+                                "Transcris fidèlement cet audio, sans rien ajouter.",
+                                types.Part.from_bytes(data=audio.getvalue(), mime_type="audio/wav"),
+                            ],
+                        )
+                        texte_voix = (resultat.text or "").strip()
+                    except Exception:
+                        texte_voix = ""
+                    if texte_voix:
+                        traiter(texte_voix)
+                    else:
+                        st.warning("Je n'ai pas réussi à comprendre l'audio. Réessaie.")
+        with i3:
+            if st.button("🧠", help="Retenir la dernière réponse en mémoire"):
+                dernieres = [m for m in st.session_state.messages if m["role"] == "assistant"]
+                if dernieres:
+                    st.session_state.en_attente = dernieres[-1]["content"][:1500]
                     st.rerun()
-                else:
-                    st.warning("Impossible de résumer ce fichier.")
-    with i2:
-        with st.popover("🎤"):
-            audio = st.audio_input("Appuie, parle, puis arrête")
-            if audio is not None and st.button("Envoyer ma voix"):
-                try:
-                    client_voix = genai.Client(api_key=cle)
-                    resultat = client_voix.models.generate_content(
-                        model=MODELES_GEMINI[0],
-                        contents=[
-                            "Transcris fidèlement cet audio, sans rien ajouter.",
-                            types.Part.from_bytes(data=audio.getvalue(), mime_type="audio/wav"),
-                        ],
-                    )
-                    texte_voix = (resultat.text or "").strip()
-                except Exception:
-                    texte_voix = ""
-                if texte_voix:
-                    traiter(texte_voix)
-                else:
-                    st.warning("Je n'ai pas réussi à comprendre l'audio. Réessaie.")
-    with i3:
-        if st.button("🧠", help="Retenir la dernière réponse en mémoire"):
-            dernieres = [m for m in st.session_state.messages if m["role"] == "assistant"]
-            if dernieres:
-                st.session_state.en_attente = dernieres[-1]["content"][:1500]
-                st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
