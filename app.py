@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import time
 import base64
 import requests
@@ -11,6 +12,8 @@ from google.genai import types
 
 FICHIER_CLE = "cle.txt"
 FICHIER_MEMOIRE = "memoire.txt"
+FICHIER_CONVERSATIONS = "conversations.json"
+DOSSIER_MODULES = "modules"
 MODELES_GEMINI = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
 MODELES_GROQ = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
 
@@ -40,7 +43,7 @@ CSS = """
 .stCaption, [data-testid="stCaptionContainer"], .stApp small { color: #9a9aa6 !important; }
 header[data-testid="stHeader"] { background: transparent; }
 section[data-testid="stSidebar"] { background: #131317; border-right: 1px solid #26262d; }
-.block-container { padding-bottom: 12rem !important; max-width: 900px; }
+.block-container { padding-bottom: 11rem !important; max-width: 900px; }
 .titre {
     font-size: 2rem; font-weight: 700; letter-spacing: -0.4px;
     color: #f2f2f5 !important; margin-bottom: 0;
@@ -57,8 +60,8 @@ section[data-testid="stSidebar"] { background: #131317; border-right: 1px solid 
 .ligne.moi { justify-content: flex-end; }
 .ligne.ia { justify-content: flex-start; }
 .bulle {
-    max-width: 48%; min-width: 60px; padding: 9px 13px; border-radius: 14px;
-    line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; font-size: 0.95rem;
+    max-width: 62%; min-width: 60px; padding: 10px 14px; border-radius: 14px;
+    line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; font-size: 0.97rem;
 }
 .bulle.moi { background: #34343c; border: 1px solid #44444e; border-bottom-right-radius: 4px; }
 .bulle.ia { background: #1d1d23; border: 1px solid #2c2c34; border-bottom-left-radius: 4px; }
@@ -78,15 +81,15 @@ section[data-testid="stSidebar"] { background: #131317; border-right: 1px solid 
 [data-testid="stBottom"] > div { background: transparent !important; }
 [data-testid="stChatInput"] {
     background: #1a1a1f !important; border: 1px solid #3a3a43 !important;
-    border-radius: 12px !important; min-height: 96px !important;
+    border-radius: 12px !important; min-height: 72px !important;
 }
 [data-testid="stChatInput"] > div, [data-testid="stChatInputContainer"] {
-    background: transparent !important; border: none !important; min-height: 86px !important;
+    background: transparent !important; border: none !important; min-height: 62px !important;
 }
 [data-testid="stChatInput"] textarea, [data-testid="stChatInputTextArea"] {
     color: #ffffff !important; -webkit-text-fill-color: #ffffff !important;
     caret-color: __ACCENT__ !important; background-color: transparent !important;
-    opacity: 1 !important; min-height: 76px !important; font-size: 1.02rem !important;
+    opacity: 1 !important; min-height: 52px !important; font-size: 1.02rem !important;
 }
 [data-testid="stChatInput"] textarea::placeholder {
     color: #8a8a96 !important; -webkit-text-fill-color: #8a8a96 !important; opacity: 1 !important;
@@ -117,7 +120,7 @@ hr { border-color: #26262d !important; }
 @media (max-width: 900px) {
     .titre { font-size: 1.5rem; }
     .carte { min-height: 80px; padding: 12px; }
-    .bulle { max-width: 82%; }
+    .bulle { max-width: 86%; }
     .block-container { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
 }
 </style>
@@ -169,8 +172,41 @@ def entetes_github():
     return {"Authorization": "Bearer " + lire_secret("GITHUB_TOKEN"), "Accept": "application/vnd.github+json"}
 
 
-def url_memoire():
-    return "https://api.github.com/repos/" + lire_secret("GITHUB_REPO") + "/contents/" + FICHIER_MEMOIRE
+def url_fichier(chemin):
+    return "https://api.github.com/repos/" + lire_secret("GITHUB_REPO") + "/contents/" + chemin
+
+
+def github_lire(chemin):
+    try:
+        r = requests.get(url_fichier(chemin), headers=entetes_github(), timeout=15)
+        if r.status_code == 200:
+            return base64.b64decode(r.json()["content"]).decode("utf-8")
+    except Exception:
+        pass
+    return ""
+
+
+def github_ecrire(chemin, texte, message):
+    try:
+        r = requests.get(url_fichier(chemin), headers=entetes_github(), timeout=15)
+        sha = r.json()["sha"] if r.status_code == 200 else None
+        corps = {"message": message, "content": base64.b64encode(texte.encode("utf-8")).decode("utf-8")}
+        if sha:
+            corps["sha"] = sha
+        r2 = requests.put(url_fichier(chemin), headers=entetes_github(), json=corps, timeout=20)
+        return r2.status_code in (200, 201)
+    except Exception:
+        return False
+
+
+def github_lister(dossier):
+    try:
+        r = requests.get(url_fichier(dossier), headers=entetes_github(), timeout=15)
+        if r.status_code == 200:
+            return [f["name"] for f in r.json() if f.get("type") == "file"]
+    except Exception:
+        pass
+    return []
 
 
 def lire_fichier(nom):
@@ -182,31 +218,13 @@ def lire_fichier(nom):
 
 def lire_memoire():
     if github_actif():
-        try:
-            r = requests.get(url_memoire(), headers=entetes_github(), timeout=15)
-            if r.status_code == 200:
-                return base64.b64decode(r.json()["content"]).decode("utf-8").strip()
-            return ""
-        except Exception:
-            return ""
+        return github_lire(FICHIER_MEMOIRE).strip()
     return lire_fichier(FICHIER_MEMOIRE)
 
 
 def ecrire_memoire(texte):
     if github_actif():
-        try:
-            r = requests.get(url_memoire(), headers=entetes_github(), timeout=15)
-            sha = r.json()["sha"] if r.status_code == 200 else None
-            corps = {
-                "message": "Mise a jour de la memoire",
-                "content": base64.b64encode(texte.encode("utf-8")).decode("utf-8"),
-            }
-            if sha:
-                corps["sha"] = sha
-            r2 = requests.put(url_memoire(), headers=entetes_github(), json=corps, timeout=15)
-            return r2.status_code in (200, 201)
-        except Exception:
-            return False
+        return github_ecrire(FICHIER_MEMOIRE, texte, "Mise a jour de la memoire")
     with open(FICHIER_MEMOIRE, "w", encoding="utf-8") as f:
         f.write(texte)
     return True
@@ -216,6 +234,31 @@ def ajouter_memoire(info):
     ancien = lire_memoire()
     nouveau = (ancien.rstrip("\n") + "\n" if ancien.strip() else "") + info + "\n"
     return ecrire_memoire(nouveau)
+
+
+def charger_conversations():
+    if github_actif():
+        brut = github_lire(FICHIER_CONVERSATIONS)
+    else:
+        brut = lire_fichier(FICHIER_CONVERSATIONS)
+    try:
+        donnees = json.loads(brut) if brut.strip() else {}
+    except Exception:
+        donnees = {}
+    return donnees
+
+
+def sauver_conversations():
+    donnees = {
+        "courante": st.session_state.get("messages", []),
+        "archives": st.session_state.get("archives", []),
+    }
+    texte = json.dumps(donnees, ensure_ascii=False)
+    if github_actif():
+        github_ecrire(FICHIER_CONVERSATIONS, texte, "Sauvegarde des conversations")
+    else:
+        with open(FICHIER_CONVERSATIONS, "w", encoding="utf-8") as f:
+            f.write(texte)
 
 
 def lire_page_web(adresse):
@@ -326,6 +369,23 @@ def resumer_pour_memoire(texte, source):
     return repondre(demande).strip()
 
 
+def proposer_module(besoin):
+    demande = [{"role": "user", "content":
+        "Ecris un module Python simple et complet pour ce besoin : " + besoin +
+        ". Le module doit definir une fonction principale nommee executer(entree) qui recoit un texte et renvoie un texte. "
+        "Utilise uniquement la bibliotheque standard et requests. Ajoute des commentaires en francais. "
+        "Reponds avec le code seul, sans explication, sans balises de code."}]
+    code = repondre(demande).strip()
+    code = re.sub(r"^```(?:python)?", "", code).strip()
+    code = re.sub(r"```$", "", code).strip()
+    return code
+
+
+def nom_module_valide(texte):
+    base = re.sub(r"[^a-z0-9_]+", "_", texte.lower()).strip("_")[:30]
+    return (base or "module") + ".py"
+
+
 def titre_conversation(messages):
     for m in messages:
         if m["role"] == "user":
@@ -343,9 +403,11 @@ def archiver_conversation():
 
 def nouvelle_conversation():
     archiver_conversation()
-    for k in ["messages", "en_attente", "suggestion", "a_repondre"]:
+    for k in ["messages", "en_attente", "suggestion", "a_repondre", "module_propose"]:
         if k in st.session_state:
             del st.session_state[k]
+    st.session_state.messages = []
+    sauver_conversations()
 
 
 def ouvrir_archive(index):
@@ -355,6 +417,7 @@ def ouvrir_archive(index):
         choisie = archives.pop(index)
         st.session_state.messages = choisie["messages"]
         st.session_state.en_attente = None
+        sauver_conversations()
 
 
 def envoyer(contenu, affichage):
@@ -369,6 +432,17 @@ def traiter(message):
         info = message.split(":", 1)[-1].strip()
         if info:
             st.session_state.en_attente = info
+        sauver_conversations()
+        st.rerun()
+        return
+    if message.lower().startswith("module"):
+        besoin = message.split(":", 1)[-1].strip() if ":" in message else message[6:].strip()
+        st.session_state.messages.append({"role": "user", "content": message})
+        if besoin:
+            code = proposer_module(besoin)
+            st.session_state.module_propose = {"nom": nom_module_valide(besoin), "code": code, "besoin": besoin}
+            st.session_state.messages.append({"role": "assistant", "content": "J'ai écrit un module pour : " + besoin + ". Regarde le code dans la section Modules à gauche, puis approuve ou refuse."})
+        sauver_conversations()
         st.rerun()
         return
     adresses = re.findall(r"https?://[^\s]+", message)
@@ -395,9 +469,12 @@ if not cle:
 
 memoire_actuelle = lire_memoire()
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+if "charge" not in st.session_state:
+    donnees = charger_conversations()
+    st.session_state.messages = donnees.get("courante", [])
+    st.session_state.archives = donnees.get("archives", [])
     st.session_state.en_attente = None
+    st.session_state.charge = True
 
 with st.sidebar:
     st.markdown("### 🧠 Mon IA")
@@ -471,6 +548,35 @@ with st.sidebar:
     else:
         st.caption("Rien pour l'instant.")
     st.markdown("---")
+    st.markdown("**🧩 Modules**")
+    with st.expander("Modules du noyau"):
+        if github_actif():
+            existants = [f for f in github_lister(DOSSIER_MODULES) if f.endswith(".py")]
+        else:
+            existants = []
+        if existants:
+            for nom in existants:
+                st.caption("• " + nom)
+        else:
+            st.caption("Aucun module pour l'instant.")
+        st.caption("Pour en créer un, écris dans la conversation : module : ce que tu veux qu'il fasse.")
+        proposition = st.session_state.get("module_propose")
+        if proposition:
+            st.markdown("**Module proposé : " + proposition["nom"] + "**")
+            st.code(proposition["code"][:3000], language="python")
+            m1, m2 = st.columns(2)
+            if m1.button("✅ Approuver", key="ok_module"):
+                if github_actif() and github_ecrire(DOSSIER_MODULES + "/" + proposition["nom"], proposition["code"], "Ajout du module " + proposition["nom"]):
+                    st.session_state.messages.append({"role": "assistant", "content": "Module ajouté : " + proposition["nom"] + "."})
+                else:
+                    st.session_state.messages.append({"role": "assistant", "content": "Je n'ai pas réussi à ajouter le module. Vérifie le jeton GitHub."})
+                st.session_state.module_propose = None
+                sauver_conversations()
+                st.rerun()
+            if m2.button("❌ Refuser", key="non_module"):
+                st.session_state.module_propose = None
+                st.rerun()
+    st.markdown("---")
     st.markdown("**⚙️ Paramètres**")
     with st.expander("Intelligence"):
         st.selectbox("Rôle", list(ROLES.keys()), key="role")
@@ -501,7 +607,7 @@ with st.sidebar:
             texte_export += qui + " : " + m["content"] + "\n\n"
         st.download_button("Exporter en fichier texte", texte_export or "Conversation vide.", file_name="conversation.txt")
     st.markdown("---")
-    st.caption("Colle une adresse web dans ta question pour que je la lise. Écris « retiens : ... » pour lui apprendre quelque chose. Rien n'est retenu sans ton accord.")
+    st.caption("Colle une adresse web dans ta question pour que je la lise. Écris « retiens : ... » pour lui apprendre quelque chose, ou « module : ... » pour lui ajouter une fonction. Rien n'est ajouté sans ton accord.")
 
 
 def afficher_bulle(role, texte):
@@ -546,6 +652,7 @@ if st.session_state.get("a_repondre"):
     place.empty()
     st.session_state.messages.append({"role": "assistant", "content": texte})
     st.session_state.a_repondre = False
+    sauver_conversations()
     st.rerun()
 
 if st.session_state.get("suggestion"):
@@ -564,10 +671,12 @@ if st.session_state.en_attente:
             texte_rep = "Je n'ai pas réussi à enregistrer. Vérifie le jeton GitHub dans les Secrets."
         st.session_state.messages.append({"role": "assistant", "content": texte_rep})
         st.session_state.en_attente = None
+        sauver_conversations()
         st.rerun()
     if col2.button("❌ Refuser"):
         st.session_state.messages.append({"role": "assistant", "content": "D'accord, je n'ajoute rien."})
         st.session_state.en_attente = None
+        sauver_conversations()
         st.rerun()
 else:
     message = st.chat_input("Écris ta demande... Colle une adresse web pour que je la lise.")
