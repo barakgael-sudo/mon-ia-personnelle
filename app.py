@@ -1,4 +1,5 @@
 import os
+import re
 import base64
 import requests
 import streamlit as st
@@ -36,8 +37,8 @@ CSS = """
     position: fixed;
     top: 8%;
     right: 4%;
-    width: 220px;
-    height: 220px;
+    width: 200px;
+    height: 200px;
     border: 1px solid rgba(160,160,175,0.18);
     transform: rotate(45deg);
     background: linear-gradient(145deg, rgba(90,90,105,0.18), rgba(30,30,38,0.05));
@@ -47,10 +48,10 @@ CSS = """
 .stApp::after {
     content: "";
     position: fixed;
-    bottom: 22%;
-    right: 14%;
-    width: 130px;
-    height: 130px;
+    bottom: 24%;
+    right: 12%;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
     border: 1px solid rgba(160,160,175,0.15);
     background: linear-gradient(145deg, rgba(100,100,115,0.16), rgba(20,20,26,0.02));
@@ -68,7 +69,7 @@ section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #17171c 0%, #0e0e12 100%);
     border-right: 1px solid #2a2a32;
 }
-.block-container { padding-bottom: 12rem !important; }
+.block-container { padding-bottom: 13rem !important; max-width: 1100px; }
 .titre {
     font-size: 2.3rem;
     font-weight: 800;
@@ -80,15 +81,16 @@ section[data-testid="stSidebar"] {
 }
 .sous-titre { color: #a3a3ae !important; margin: 4px 0 1.6rem 18px; }
 .carte {
-    background: linear-gradient(135deg, #f87171 0%, #dc2626 45%, #7f1d1d 100%);
-    border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 8px;
+    background: linear-gradient(145deg, #2a2a32, #1b1b21);
+    border: 1px solid #3a3a44;
+    border-top: 2px solid __ACCENT__;
+    border-radius: 6px;
     padding: 18px;
     min-height: 110px;
-    box-shadow: 0 10px 30px rgba(220,38,38,0.25);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
-.carte b { color: #ffffff !important; font-size: 1.05rem; letter-spacing: 0.3px; }
-.carte span { color: #ffe4e6 !important; }
+.carte b { color: #f2f2f5 !important; font-size: 1.05rem; letter-spacing: 0.3px; }
+.carte span { color: #b4b4be !important; }
 div[data-testid="stChatMessage"] {
     background: linear-gradient(145deg, #25252c, #18181d);
     border: 1px solid #34343d;
@@ -98,7 +100,7 @@ div[data-testid="stChatMessage"] {
 }
 [data-testid="stBottom"] {
     background: transparent !important;
-    padding-bottom: 70px !important;
+    padding-bottom: 64px !important;
 }
 [data-testid="stBottom"] > div { background: transparent !important; }
 [data-testid="stChatInput"] {
@@ -162,6 +164,16 @@ div[data-testid="stChatMessage"] {
 }
 .sugg .stButton > button p { color: #ffffff !important; }
 .sugg .stButton > button:hover { box-shadow: 0 0 18px rgba(248,113,113,0.5); }
+.icones .stButton > button, .icones [data-testid="stPopover"] > div > button {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    font-size: 1rem !important;
+    border-radius: 6px !important;
+    background: #1b1b21 !important;
+    border: 1px solid #3f3f4a !important;
+}
 div[data-baseweb="select"] > div {
     background: #1b1b21 !important;
     border: 1px solid #3f3f4a !important;
@@ -184,6 +196,13 @@ div[data-baseweb="select"] * { color: #f0f0f3 !important; }
     border-radius: 6px;
 }
 hr { border-color: #2a2a32 !important; }
+@media (max-width: 900px) {
+    .titre { font-size: 1.7rem; }
+    .carte { min-height: 80px; padding: 12px; }
+    .block-container { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
+    .stApp::before, .stApp::after { display: none; }
+    [data-testid="stChatInput"] { min-height: 90px !important; }
+}
 </style>
 """
 st.markdown(CSS.replace("__ACCENT__", accent).replace("__TAILLE__", taille), unsafe_allow_html=True)
@@ -311,6 +330,19 @@ def lire_fichier_envoye(fichier):
         return ""
 
 
+def resumer_pour_memoire(texte, source):
+    try:
+        client_r = genai.Client(api_key=cle)
+        res = client_r.models.generate_content(
+            model=MODELE,
+            contents="Resume en 8 points courts maximum les informations utiles et durables de ce texte (source : "
+            + source + "). Reponds en francais, un point par ligne, sans titre.\n\n" + texte,
+        )
+        return (res.text or "").strip()
+    except Exception:
+        return ""
+
+
 def nouvelle_conversation():
     for k in ["chat", "messages", "en_attente", "suggestion"]:
         if k in st.session_state:
@@ -370,7 +402,7 @@ with st.sidebar:
             texte_export += qui + " : " + m["content"] + "\n\n"
         st.download_button("Exporter en fichier texte", texte_export or "Conversation vide.", file_name="conversation.txt")
     st.markdown("---")
-    st.caption("Écris « retiens : ... » pour lui apprendre quelque chose. Rien n'est retenu sans ton accord.")
+    st.caption("Colle une adresse web dans ta question pour que je la lise. Écris « retiens : ... » pour lui apprendre quelque chose. Rien n'est retenu sans ton accord.")
 
 if "chat" not in st.session_state:
     client = genai.Client(api_key=cle)
@@ -444,21 +476,15 @@ def traiter(message):
         if info:
             st.session_state.en_attente = info
         st.rerun()
-    else:
-        envoyer(message, message)
-
-
-def resumer_pour_memoire(texte, source):
-    try:
-        client_r = genai.Client(api_key=cle)
-        res = client_r.models.generate_content(
-            model=MODELE,
-            contents="Resume en 8 points courts maximum les informations utiles et durables de ce texte (source : "
-            + source + "). Reponds en francais, un point par ligne, sans titre.\n\n" + texte,
-        )
-        return (res.text or "").strip()
-    except Exception:
-        return ""
+        return
+    adresses = re.findall(r"https?://[^\s]+", message)
+    contenu = message
+    if adresses:
+        for adr in adresses[:2]:
+            page = lire_page_web(adr)
+            if page:
+                contenu += "\n\nContenu de la page " + adr + " :\n" + page
+    envoyer(contenu, message)
 
 
 if st.session_state.get("suggestion"):
@@ -483,11 +509,12 @@ if st.session_state.en_attente:
         st.session_state.en_attente = None
         st.rerun()
 else:
-    message = st.chat_input("Écris ta demande... (retiens : ... pour la mémoire)")
+    message = st.chat_input("Écris ta demande... Colle une adresse web pour que je la lise.")
     if message:
         traiter(message)
 
-    i1, i2, i3, _vide = st.columns([1, 1, 1, 5])
+    st.markdown('<div class="icones">', unsafe_allow_html=True)
+    i1, i2, i3, _vide = st.columns([1, 1, 1, 9])
     with i1:
         with st.popover("📎"):
             st.caption("Joindre un fichier ou un livre (texte, PDF)")
@@ -530,23 +557,9 @@ else:
                 else:
                     st.warning("Je n'ai pas réussi à comprendre l'audio. Réessaie.")
     with i3:
-        with st.popover("🌐"):
-            st.caption("Lire une page web (ton site, un article)")
-            adresse = st.text_input("Adresse de la page", key="adresse_web", placeholder="https://...")
-            question_web = st.text_input("Que veux-tu faire avec ?", key="question_web")
-            w_a, w_b = st.columns(2)
-            if adresse and w_a.button("Lire et répondre"):
-                contenu_web = lire_page_web(adresse)
-                if contenu_web:
-                    demande = (question_web or "Résume cette page.") + "\n\nContenu de la page " + adresse + " :\n" + contenu_web
-                    envoyer(demande, "🌐 " + adresse + " : " + (question_web or "Résume cette page."))
-                else:
-                    st.warning("Impossible de lire cette page.")
-            if adresse and w_b.button("Apprendre"):
-                contenu_web = lire_page_web(adresse)
-                resume = resumer_pour_memoire(contenu_web, adresse) if contenu_web else ""
-                if resume:
-                    st.session_state.en_attente = resume
-                    st.rerun()
-                else:
-                    st.warning("Impossible de lire cette page.")
+        if st.button("🧠", help="Retenir la dernière réponse en mémoire"):
+            dernieres = [m for m in st.session_state.messages if m["role"] == "assistant"]
+            if dernieres:
+                st.session_state.en_attente = dernieres[-1]["content"][:1500]
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
