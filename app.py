@@ -116,6 +116,7 @@ div[data-baseweb="select"] * { color: #eeeef1 !important; }
 [data-testid="stExpander"], [data-testid="stPopover"] { background: #16161b; border: 1px solid #2a2a31; border-radius: 6px; }
 [data-testid="stAlert"] { background: #1d1a1c !important; border: 1px solid #6a6a76; border-radius: 6px; }
 [data-testid="stFileUploader"] section { background: #16161b; border: 1px dashed #3a3a43; border-radius: 6px; }
+button[role="tab"] p { font-size: 0.85rem !important; }
 hr { border-color: #26262d !important; }
 @media (max-width: 900px) {
     .titre { font-size: 1.5rem; }
@@ -232,7 +233,7 @@ def ecrire_memoire(texte):
 
 def ajouter_memoire(info):
     ancien = lire_memoire()
-    nouveau = (ancien.rstrip("\n") + "\n" if ancien.strip() else "") + info + "\n"
+    nouveau = (ancien.rstrip("\n") + "\n" if ancien.strip() else "") + info.strip() + "\n"
     return ecrire_memoire(nouveau)
 
 
@@ -369,6 +370,38 @@ def resumer_pour_memoire(texte, source):
     return repondre(demande).strip()
 
 
+def apprendre_automatiquement(question, reponse):
+    consigne = (
+        "Tu notes pour toi-meme, en silence, ce qui merite d'etre retenu sur Baraka (ses entreprises, ses projets, "
+        "ses preferences, ses decisions, ses faits durables) a partir de cet echange. "
+        "Ecris au maximum 2 lignes courtes, une information par ligne, sans puce ni numero. "
+        "Ne note jamais de mot de passe, de cle, de numero de compte ou d'information de sante. "
+        "S'il n'y a rien de durable a retenir, reponds exactement : RIEN."
+    )
+    echange = "Baraka : " + question[:1200] + "\n\nIA : " + reponse[:1200]
+    try:
+        client_a = genai.Client(api_key=cle)
+        for modele in MODELES_GEMINI[:2]:
+            try:
+                res = client_a.models.generate_content(
+                    model=modele,
+                    contents=echange,
+                    config=types.GenerateContentConfig(system_instruction=consigne, temperature=0.2),
+                )
+                note = (res.text or "").strip()
+                if note and note.upper() != "RIEN" and "RIEN" not in note[:6].upper():
+                    existantes = memoire_actuelle.lower()
+                    lignes = [l.strip(" -•\t") for l in note.split("\n") if l.strip()]
+                    nouvelles = [l for l in lignes if l.lower() not in existantes][:2]
+                    if nouvelles:
+                        ajouter_memoire("\n".join(nouvelles))
+                return
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+
 def proposer_module(besoin):
     demande = [{"role": "user", "content":
         "Ecris un module Python simple et complet pour ce besoin : " + besoin +
@@ -398,12 +431,12 @@ def archiver_conversation():
     if msgs:
         archives = st.session_state.get("archives", [])
         archives.insert(0, {"titre": titre_conversation(msgs), "messages": msgs})
-        st.session_state.archives = archives[:12]
+        st.session_state.archives = archives[:30]
 
 
 def nouvelle_conversation():
     archiver_conversation()
-    for k in ["messages", "en_attente", "suggestion", "a_repondre", "module_propose"]:
+    for k in ["en_attente", "suggestion", "a_repondre", "module_propose"]:
         if k in st.session_state:
             del st.session_state[k]
     st.session_state.messages = []
@@ -431,7 +464,10 @@ def traiter(message):
         st.session_state.messages.append({"role": "user", "content": message})
         info = message.split(":", 1)[-1].strip()
         if info:
-            st.session_state.en_attente = info
+            if ajouter_memoire(info):
+                st.session_state.messages.append({"role": "assistant", "content": "C'est retenu."})
+            else:
+                st.session_state.messages.append({"role": "assistant", "content": "Je n'ai pas réussi à enregistrer. Vérifie le jeton GitHub dans les Secrets."})
         sauver_conversations()
         st.rerun()
         return
@@ -441,7 +477,7 @@ def traiter(message):
         if besoin:
             code = proposer_module(besoin)
             st.session_state.module_propose = {"nom": nom_module_valide(besoin), "code": code, "besoin": besoin}
-            st.session_state.messages.append({"role": "assistant", "content": "J'ai écrit un module pour : " + besoin + ". Regarde le code dans la section Modules à gauche, puis approuve ou refuse."})
+            st.session_state.messages.append({"role": "assistant", "content": "J'ai écrit un module pour : " + besoin + ". Regarde le code dans l'onglet Ajouter à gauche, puis approuve ou refuse. Rien n'est ajouté sans ton accord."})
         sauver_conversations()
         st.rerun()
         return
@@ -482,8 +518,35 @@ with st.sidebar:
         nouvelle_conversation()
         st.rerun()
 
-    st.markdown("**Ajouter à la conversation**")
-    with st.expander("📎 Pièce jointe"):
+    onglet_conv, onglet_mem, onglet_ajout = st.tabs(["Conversations", "Mémoire", "Ajouter"])
+
+    with onglet_conv:
+        archives = st.session_state.get("archives", [])
+        if archives:
+            for i, a in enumerate(archives):
+                if st.button("💬 " + a["titre"], key="arch_" + str(i)):
+                    ouvrir_archive(i)
+                    st.rerun()
+        else:
+            st.caption("Aucune conversation passée pour l'instant.")
+
+    with onglet_mem:
+        lignes_mem = [l for l in memoire_actuelle.split("\n") if l.strip()]
+        if lignes_mem:
+            for l in lignes_mem[-12:][::-1]:
+                propre = l.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                st.markdown('<div class="souvenir">' + propre[:200] + '</div>', unsafe_allow_html=True)
+            st.caption(str(len(lignes_mem)) + " information(s) au total")
+        else:
+            st.caption("Rien pour l'instant. Elle apprend toute seule de vos discussions.")
+        if st.button("🧠 Retenir la dernière réponse"):
+            dernieres = [m for m in st.session_state.messages if m["role"] == "assistant"]
+            if dernieres:
+                ajouter_memoire(dernieres[-1]["content"][:600])
+                st.rerun()
+
+    with onglet_ajout:
+        st.markdown("**📎 Pièce jointe**")
         fichier = st.file_uploader("Fichier (texte, PDF, livre)", type=["txt", "md", "csv", "py", "json", "pdf"])
         question_fichier = st.text_input("Que veux-tu faire avec ?", key="question_fichier")
         c_a, c_b = st.columns(2)
@@ -498,11 +561,11 @@ with st.sidebar:
             contenu_fichier = lire_fichier_envoye(fichier)
             resume = resumer_pour_memoire(contenu_fichier, fichier.name) if contenu_fichier else ""
             if resume:
-                st.session_state.en_attente = resume
+                ajouter_memoire(resume)
                 st.rerun()
             else:
                 st.warning("Impossible de résumer ce fichier.")
-    with st.expander("🎤 Message vocal"):
+        st.markdown("**🎤 Message vocal**")
         audio = st.audio_input("Appuie, parle, puis arrête")
         if audio is not None and st.button("Envoyer ma voix", key="env_voix"):
             try:
@@ -521,45 +584,13 @@ with st.sidebar:
                 traiter(texte_voix)
             else:
                 st.warning("Je n'ai pas réussi à comprendre l'audio. Réessaie.")
-    if st.button("🧠 Retenir la dernière réponse"):
-        dernieres = [m for m in st.session_state.messages if m["role"] == "assistant"]
-        if dernieres:
-            st.session_state.en_attente = dernieres[-1]["content"][:1500]
-            st.rerun()
-
-    st.markdown("---")
-    st.markdown("**Conversations récentes**")
-    archives = st.session_state.get("archives", [])
-    if archives:
-        for i, a in enumerate(archives):
-            if st.button("💬 " + a["titre"], key="arch_" + str(i)):
-                ouvrir_archive(i)
-                st.rerun()
-    else:
-        st.caption("Aucune pour l'instant.")
-    st.markdown("---")
-    st.markdown("**Mémoire récente**")
-    lignes_mem = [l for l in memoire_actuelle.split("\n") if l.strip()]
-    if lignes_mem:
-        for l in lignes_mem[-5:][::-1]:
-            propre = l.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            st.markdown('<div class="souvenir">' + propre[:160] + '</div>', unsafe_allow_html=True)
-        st.caption(str(len(lignes_mem)) + " information(s) au total")
-    else:
-        st.caption("Rien pour l'instant.")
-    st.markdown("---")
-    st.markdown("**🧩 Modules**")
-    with st.expander("Modules du noyau"):
-        if github_actif():
-            existants = [f for f in github_lister(DOSSIER_MODULES) if f.endswith(".py")]
-        else:
-            existants = []
+        st.markdown("**🧩 Modules du noyau**")
+        existants = [f for f in github_lister(DOSSIER_MODULES) if f.endswith(".py")] if github_actif() else []
         if existants:
             for nom in existants:
                 st.caption("• " + nom)
         else:
-            st.caption("Aucun module pour l'instant.")
-        st.caption("Pour en créer un, écris dans la conversation : module : ce que tu veux qu'il fasse.")
+            st.caption("Aucun module pour l'instant. Écris dans la conversation : module : ce que tu veux qu'il fasse.")
         proposition = st.session_state.get("module_propose")
         if proposition:
             st.markdown("**Module proposé : " + proposition["nom"] + "**")
@@ -576,6 +607,7 @@ with st.sidebar:
             if m2.button("❌ Refuser", key="non_module"):
                 st.session_state.module_propose = None
                 st.rerun()
+
     st.markdown("---")
     st.markdown("**⚙️ Paramètres**")
     with st.expander("Intelligence"):
@@ -585,10 +617,11 @@ with st.sidebar:
         st.selectbox("Langue", list(LANGUES.keys()), key="langue")
         st.slider("Créativité", 0.0, 1.0, 0.5, 0.1, key="creativite")
         st.toggle("Recherche internet", value=True, key="recherche_web")
+        st.toggle("Apprentissage automatique", value=True, key="apprentissage_auto")
     with st.expander("Apparence"):
         st.selectbox("Taille du texte", list(TAILLES.keys()), index=1, key="taille")
         st.selectbox("Couleur d'accent", list(ACCENTS.keys()), key="accent")
-    with st.expander("Mémoire" + (" permanente" if github_actif() else "")):
+    with st.expander("Données"):
         if memoire_actuelle:
             if st.button("Effacer toute la mémoire"):
                 st.session_state.confirmer_effacement = True
@@ -598,16 +631,12 @@ with st.sidebar:
                     ecrire_memoire("")
                     st.session_state.confirmer_effacement = False
                     st.rerun()
-        else:
-            st.caption("Rien à effacer.")
-    with st.expander("Conversation"):
         texte_export = ""
         for m in st.session_state.get("messages", []):
             qui = "Baraka" if m["role"] == "user" else "IA"
             texte_export += qui + " : " + m["content"] + "\n\n"
-        st.download_button("Exporter en fichier texte", texte_export or "Conversation vide.", file_name="conversation.txt")
-    st.markdown("---")
-    st.caption("Colle une adresse web dans ta question pour que je la lise. Écris « retiens : ... » pour lui apprendre quelque chose, ou « module : ... » pour lui ajouter une fonction. Rien n'est ajouté sans ton accord.")
+        st.download_button("Exporter la conversation", texte_export or "Conversation vide.", file_name="conversation.txt")
+    st.caption("Colle une adresse web dans ta question pour que je la lise. « retiens : ... » pour lui apprendre quelque chose. « module : ... » pour lui ajouter une fonction, avec ton accord.")
 
 
 def afficher_bulle(role, texte):
@@ -619,7 +648,7 @@ def afficher_bulle(role, texte):
 st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
 st.markdown('<p class="sous-titre">Ton assistant personnel pour toutes tes activités.</p>', unsafe_allow_html=True)
 
-if not st.session_state.messages and not st.session_state.en_attente:
+if not st.session_state.messages:
     c1, c2, c3 = st.columns(3)
     c1.markdown('<div class="carte"><b>CRÉER</b><br><span>Idées de designs, textes, publications.</span></div>', unsafe_allow_html=True)
     c2.markdown('<div class="carte"><b>CALCULER</b><br><span>Chiffres, budgets, devis, statistiques.</span></div>', unsafe_allow_html=True)
@@ -652,6 +681,13 @@ if st.session_state.get("a_repondre"):
     place.empty()
     st.session_state.messages.append({"role": "assistant", "content": texte})
     st.session_state.a_repondre = False
+    if st.session_state.get("apprentissage_auto", True) and not texte.startswith("Je n'ai pas réussi"):
+        derniere_question = ""
+        for m in reversed(st.session_state.messages[:-1]):
+            if m["role"] == "user":
+                derniere_question = m["content"]
+                break
+        apprendre_automatiquement(derniere_question, texte)
     sauver_conversations()
     st.rerun()
 
@@ -660,25 +696,6 @@ if st.session_state.get("suggestion"):
     st.session_state.suggestion = None
     traiter(texte_s)
 
-if st.session_state.en_attente:
-    info = st.session_state.en_attente
-    st.info("Le noyau veut ajouter à sa mémoire : " + info)
-    col1, col2 = st.columns(2)
-    if col1.button("✅ Approuver"):
-        if ajouter_memoire(info):
-            texte_rep = "C'est retenu."
-        else:
-            texte_rep = "Je n'ai pas réussi à enregistrer. Vérifie le jeton GitHub dans les Secrets."
-        st.session_state.messages.append({"role": "assistant", "content": texte_rep})
-        st.session_state.en_attente = None
-        sauver_conversations()
-        st.rerun()
-    if col2.button("❌ Refuser"):
-        st.session_state.messages.append({"role": "assistant", "content": "D'accord, je n'ajoute rien."})
-        st.session_state.en_attente = None
-        sauver_conversations()
-        st.rerun()
-else:
-    message = st.chat_input("Écris ta demande... Colle une adresse web pour que je la lise.")
-    if message:
-        traiter(message)
+message = st.chat_input("Écris ta demande... Colle une adresse web pour que je la lise.")
+if message:
+    traiter(message)
