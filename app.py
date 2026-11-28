@@ -3,6 +3,8 @@ import re
 import json
 import time
 import base64
+import threading
+import importlib.util
 import requests
 import streamlit as st
 from bs4 import BeautifulSoup
@@ -13,6 +15,7 @@ from google.genai import types
 FICHIER_CLE = "cle.txt"
 FICHIER_MEMOIRE = "memoire.txt"
 FICHIER_CONVERSATIONS = "conversations.json"
+FICHIER_ACTIFS = "modules_actifs.json"
 DOSSIER_MODULES = "modules"
 MODELES_GEMINI = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
 MODELES_GROQ = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
@@ -60,11 +63,11 @@ section[data-testid="stSidebar"] { background: #131317; border-right: 1px solid 
 .ligne.moi { justify-content: flex-end; }
 .ligne.ia { justify-content: flex-start; }
 .bulle {
-    max-width: 62%; min-width: 60px; padding: 10px 14px; border-radius: 14px;
+    min-width: 60px; padding: 10px 14px; border-radius: 14px;
     line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; font-size: 0.97rem;
 }
-.bulle.moi { background: #34343c; border: 1px solid #44444e; border-bottom-right-radius: 4px; }
-.bulle.ia { background: #1d1d23; border: 1px solid #2c2c34; border-bottom-left-radius: 4px; }
+.bulle.moi { max-width: 62%; background: #34343c; border: 1px solid #44444e; border-bottom-right-radius: 4px; }
+.bulle.ia { max-width: 92%; background: #1d1d23; border: 1px solid #2c2c34; border-bottom-left-radius: 4px; }
 .points { display: inline-flex; gap: 5px; padding: 4px 2px; }
 .points span {
     width: 8px; height: 8px; border-radius: 50%; background: #9a9aa6;
@@ -121,7 +124,8 @@ hr { border-color: #26262d !important; }
 @media (max-width: 900px) {
     .titre { font-size: 1.5rem; }
     .carte { min-height: 80px; padding: 12px; }
-    .bulle { max-width: 86%; }
+    .bulle.moi { max-width: 86%; }
+    .bulle.ia { max-width: 96%; }
     .block-container { padding-left: 0.8rem !important; padding-right: 0.8rem !important; }
 }
 </style>
@@ -260,6 +264,52 @@ def sauver_conversations():
     else:
         with open(FICHIER_CONVERSATIONS, "w", encoding="utf-8") as f:
             f.write(texte)
+
+
+def charger_modules_actifs():
+    brut = github_lire(FICHIER_ACTIFS) if github_actif() else lire_fichier(FICHIER_ACTIFS)
+    try:
+        liste = json.loads(brut) if brut.strip() else []
+    except Exception:
+        liste = []
+    return liste if isinstance(liste, list) else []
+
+
+def sauver_modules_actifs(liste):
+    texte = json.dumps(liste, ensure_ascii=False)
+    if github_actif():
+        return github_ecrire(FICHIER_ACTIFS, texte, "Mise a jour des modules actifs")
+    with open(FICHIER_ACTIFS, "w", encoding="utf-8") as f:
+        f.write(texte)
+    return True
+
+
+def executer_module(nom, entree):
+    code = github_lire(DOSSIER_MODULES + "/" + nom)
+    if not code:
+        return "Module introuvable : " + nom
+    resultat = {"sortie": None, "erreur": None}
+
+    def tache():
+        try:
+            spec = importlib.util.spec_from_loader("module_dynamique", loader=None)
+            module = importlib.util.module_from_spec(spec)
+            exec(compile(code, nom, "exec"), module.__dict__)
+            if not hasattr(module, "executer"):
+                resultat["erreur"] = "Le module n'a pas de fonction executer."
+                return
+            resultat["sortie"] = str(module.executer(entree))
+        except Exception as e:
+            resultat["erreur"] = type(e).__name__ + " : " + str(e)[:200]
+
+    fil = threading.Thread(target=tache, daemon=True)
+    fil.start()
+    fil.join(timeout=15)
+    if fil.is_alive():
+        return "Le module a pris trop de temps (plus de 15 secondes) et a été ignoré."
+    if resultat["erreur"]:
+        return "Erreur dans le module : " + resultat["erreur"]
+    return resultat["sortie"] or "Le module n'a rien renvoyé."
 
 
 def lire_page_web(adresse):
@@ -406,7 +456,8 @@ def proposer_module(besoin, memoire):
     demande = [{"role": "user", "content":
         "Ecris un module Python simple et complet pour ce besoin : " + besoin +
         ". Le module doit definir une fonction principale nommee executer(entree) qui recoit un texte et renvoie un texte. "
-        "Utilise uniquement la bibliotheque standard et requests. Ajoute des commentaires en francais. "
+        "Utilise uniquement la bibliotheque standard et requests. N'ecris aucun fichier, ne supprime rien, ne lis aucune cle ni aucun secret. "
+        "Ajoute des commentaires en francais. "
         "Reponds avec le code seul, sans explication, sans balises de code."}]
     code = repondre(demande, memoire).strip()
     code = re.sub(r"^```(?:python)?", "", code).strip()
@@ -460,7 +511,8 @@ def envoyer(contenu, affichage):
 
 
 def traiter(message, memoire):
-    if message.lower().startswith("retiens"):
+    bas = message.lower().strip()
+    if bas.startswith("retiens"):
         st.session_state.messages.append({"role": "user", "content": message})
         info = message.split(":", 1)[-1].strip()
         if info:
@@ -471,13 +523,27 @@ def traiter(message, memoire):
         sauver_conversations()
         st.rerun()
         return
-    if message.lower().startswith("module"):
+    if bas.startswith("module"):
         besoin = message.split(":", 1)[-1].strip() if ":" in message else message[6:].strip()
         st.session_state.messages.append({"role": "user", "content": message})
         if besoin:
             code = proposer_module(besoin, memoire)
             st.session_state.module_propose = {"nom": nom_module_valide(besoin), "code": code, "besoin": besoin}
             st.session_state.messages.append({"role": "assistant", "content": "J'ai écrit un module pour : " + besoin + ". Regarde le code dans l'onglet Ajouter à gauche, puis approuve ou refuse. Rien n'est ajouté sans ton accord."})
+        sauver_conversations()
+        st.rerun()
+        return
+    if bas.startswith("utilise"):
+        reste = message[7:].strip()
+        nom_brut, _, demande_module = reste.partition(":")
+        nom = nom_module_valide(nom_brut.strip().replace(".py", ""))
+        st.session_state.messages.append({"role": "user", "content": message})
+        actifs = charger_modules_actifs()
+        if nom not in actifs:
+            st.session_state.messages.append({"role": "assistant", "content": "Le module " + nom + " n'est pas activé. Active-le d'abord dans l'onglet Ajouter."})
+        else:
+            sortie = executer_module(nom, demande_module.strip())
+            st.session_state.messages.append({"role": "assistant", "content": "Résultat du module " + nom + " :\n" + sortie})
         sauver_conversations()
         st.rerun()
         return
@@ -592,11 +658,27 @@ def application():
                     traiter(texte_voix, memoire_actuelle)
                 else:
                     st.warning("Je n'ai pas réussi à comprendre l'audio. Réessaie.")
+
             st.markdown("**🧩 Modules du noyau**")
             existants = [f for f in github_lister(DOSSIER_MODULES) if f.endswith(".py")] if github_actif() else []
+            actifs = charger_modules_actifs() if github_actif() else []
             if existants:
                 for nom in existants:
-                    st.caption("• " + nom)
+                    est_actif = nom in actifs
+                    etat = "🟢 actif" if est_actif else "⚪ inactif"
+                    st.caption("• " + nom + " : " + etat)
+                    b1, b2 = st.columns(2)
+                    if not est_actif:
+                        if b1.button("Activer", key="act_" + nom):
+                            actifs.append(nom)
+                            sauver_modules_actifs(actifs)
+                            st.rerun()
+                    else:
+                        if b1.button("Désactiver", key="des_" + nom):
+                            actifs = [a for a in actifs if a != nom]
+                            sauver_modules_actifs(actifs)
+                            st.rerun()
+                st.caption("Pour utiliser un module actif, écris : utilise nom_du_module : ta demande")
             else:
                 st.caption("Aucun module pour l'instant. Écris dans la conversation : module : ce que tu veux qu'il fasse.")
             proposition = st.session_state.get("module_propose")
@@ -606,7 +688,7 @@ def application():
                 m1, m2 = st.columns(2)
                 if m1.button("✅ Approuver", key="ok_module"):
                     if github_actif() and github_ecrire(DOSSIER_MODULES + "/" + proposition["nom"], proposition["code"], "Ajout du module " + proposition["nom"]):
-                        st.session_state.messages.append({"role": "assistant", "content": "Module ajouté : " + proposition["nom"] + "."})
+                        st.session_state.messages.append({"role": "assistant", "content": "Module ajouté : " + proposition["nom"] + ". Active-le dans l'onglet Ajouter pour pouvoir l'utiliser."})
                     else:
                         st.session_state.messages.append({"role": "assistant", "content": "Je n'ai pas réussi à ajouter le module. Vérifie le jeton GitHub."})
                     st.session_state.module_propose = None
@@ -644,12 +726,13 @@ def application():
                 qui = "Baraka" if m["role"] == "user" else "IA"
                 texte_export += qui + " : " + m["content"] + "\n\n"
             st.download_button("Exporter la conversation", texte_export or "Conversation vide.", file_name="conversation.txt")
-        st.caption("Colle une adresse web dans ta question pour que je la lise. « retiens : ... » pour lui apprendre quelque chose. « module : ... » pour lui ajouter une fonction, avec ton accord.")
+        st.caption("« retiens : ... » pour lui apprendre quelque chose. « module : ... » pour lui faire écrire une fonction, avec ton accord. « utilise nom : ... » pour employer un module actif.")
 
-    st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sous-titre">Ton assistant personnel pour toutes tes activités.</p>', unsafe_allow_html=True)
+    en_conversation = bool(st.session_state.messages) or bool(st.session_state.get("a_repondre"))
 
-    if not st.session_state.messages:
+    if not en_conversation:
+        st.markdown('<p class="titre">Bonjour Baraka</p>', unsafe_allow_html=True)
+        st.markdown('<p class="sous-titre">Ton assistant personnel pour toutes tes activités.</p>', unsafe_allow_html=True)
         c1, c2, c3 = st.columns(3)
         c1.markdown('<div class="carte"><b>CRÉER</b><br><span>Idées de designs, textes, publications.</span></div>', unsafe_allow_html=True)
         c2.markdown('<div class="carte"><b>CALCULER</b><br><span>Chiffres, budgets, devis, statistiques.</span></div>', unsafe_allow_html=True)
